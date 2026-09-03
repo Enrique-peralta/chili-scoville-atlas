@@ -1,0 +1,3998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Scoville Atlas — Origins of the World's Chili Peppers</title>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#120c0a;
+    --panel:#1c1512;
+    --panel-border:#3a2a22;
+    --ember-yellow:#f4c542;
+    --ember-orange:#e8791a;
+    --ember-red:#b9241c;
+    --ember-deep:#4a0a08;
+    --text:#f2e9de;
+    --text-dim:#b8a89a;
+    --mono:'Space Mono', monospace;
+    --display:'Fraunces', serif;
+    --sans:'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; background:var(--bg); font-family: var(--sans); color: var(--text); }
+  #map { position:absolute; inset:0; }
+
+  /* subtle vignette so UI panels read clearly over any map style */
+  #vignette{
+    position:absolute; inset:0; pointer-events:none; z-index:1;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(10,6,5,0.55) 100%);
+  }
+
+  .panel{
+    position:absolute; z-index:5;
+    background: rgba(24,17,14,0.88);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+  }
+
+  #title-panel{
+    top: 20px; left: 20px; width: 320px;
+    padding: 20px 22px 18px;
+  }
+  #title-panel h1{
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 26px;
+    line-height: 1.08;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+    background: linear-gradient(120deg, var(--ember-yellow), var(--ember-red) 70%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  #title-panel p.sub{
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  #search-wrap{ position:relative; }
+  #search{
+    width:100%;
+    background: #0f0a08;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    outline: none;
+  }
+  #search::placeholder{ color: #7a6a5c; }
+  #search:focus{ border-color: var(--ember-orange); }
+  #count{
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    display:flex; justify-content:space-between;
+  }
+  #count b{ color: var(--ember-yellow); font-weight:700; }
+
+  #legend-panel{
+    bottom: 24px; left: 20px; width: 270px;
+    padding: 16px 20px 18px;
+  }
+  #legend-panel h2{
+    font-family: var(--mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin: 0 0 12px;
+    font-weight: 400;
+  }
+  #gradient-bar{
+    height: 10px;
+    border-radius: 6px;
+    background: linear-gradient(90deg,
+      #f4c542 0%, #eea430 18%, #e8791a 34%, #d94a1c 50%, #b9241c 68%, #7a1210 84%, #3a0a08 100%);
+    margin-bottom: 6px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+  }
+  #legend-ticks{
+    display:flex; justify-content:space-between;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+  }
+  #legend-note{
+    margin-top: 12px; font-size: 11px; color: var(--text-dim); line-height:1.5;
+  }
+  .legend-swatch{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+
+  #detail-panel{
+    top: 20px; right: 20px; width: 340px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    padding: 0;
+    display: none;
+  }
+  #detail-panel.open{ display:block; }
+  #detail-close{
+    position:absolute; top:12px; right:14px;
+    background:none; border:none; color: var(--text-dim);
+    font-size:20px; cursor:pointer; line-height:1;
+    font-family: var(--sans);
+  }
+  #detail-close:hover{ color: var(--text); }
+  #detail-content{ padding: 22px 22px 24px; }
+  #detail-eyebrow{
+    font-family: var(--mono); font-size: 10.5px; color: var(--ember-orange);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;
+  }
+  #detail-name{
+    font-family: var(--display); font-weight:600; font-size: 24px; line-height:1.15;
+    margin: 0 0 14px; color: var(--text);
+  }
+  .detail-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding: 9px 0; border-top: 1px solid var(--panel-border);
+    font-size: 13.5px;
+  }
+  .detail-row:first-of-type{ border-top:none; padding-top:0; }
+  .detail-label{ color: var(--text-dim); font-size: 12px; }
+  .detail-value{ text-align:right; color: var(--text); font-weight:500; }
+  #shu-badge{
+    display:inline-block; margin-top:14px; padding: 8px 14px;
+    border-radius: 8px; font-family: var(--mono); font-size: 14px; font-weight:700;
+    color:#12100e;
+  }
+  #detail-link{
+    display:inline-block; margin-top:16px; font-size:12.5px;
+    color: var(--ember-yellow); text-decoration:none; border-bottom: 1px solid rgba(244,197,66,0.4);
+    padding-bottom: 1px;
+  }
+  #detail-link:hover{ border-bottom-color: var(--ember-yellow); }
+  #detail-estimated{
+    margin-top: 12px; font-size: 11px; color: var(--text-dim); font-style: italic;
+  }
+
+  ::-webkit-scrollbar{ width:6px; }
+  ::-webkit-scrollbar-thumb{ background: var(--panel-border); border-radius: 3px; }
+
+  .mapboxgl-ctrl-attrib{ font-size: 10px; }
+
+  @media (max-width: 720px){
+    #title-panel{ width: calc(100% - 40px); }
+    #legend-panel{ width: calc(100% - 40px); }
+    #detail-panel{ width: calc(100% - 40px); left: 20px; right: 20px; top: auto; bottom: 24px; max-height: 45vh; }
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="vignette"></div>
+
+<div id="title-panel" class="panel">
+  <h1>The Scoville Atlas</h1>
+  <p class="sub">Where the world's chili peppers come from, mapped by heat — pale ember for mild, deep blood-red for the reapers.</p>
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="Search a pepper or country…" autocomplete="off" />
+  </div>
+  <div id="count"><span>Showing <b id="count-shown">166</b> of 166 peppers</span></div>
+</div>
+
+<div id="legend-panel" class="panel">
+  <h2>Scoville Heat Units (log scale)</h2>
+  <div id="gradient-bar"></div>
+  <div id="legend-ticks">
+    <span>0</span><span>1K</span><span>30K</span><span>300K</span><span>1M+</span>
+  </div>
+  <div id="legend-note">Dot size also scales with heat. Click any dot for details. Data enriched from Chili Pepper Madness.</div>
+</div>
+
+<div id="detail-panel" class="panel">
+  <button id="detail-close">&times;</button>
+  <div id="detail-content"></div>
+</div>
+
+<script>
+const CHILI_DATA = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -60.5332,
+          10.4686
+        ]
+      },
+      "properties": {
+        "name": "7-Pot Barrackapore Chili Pepper",
+        "full_title": "7-Pot Barrackapore Chili Pepper",
+        "origin": "Trinidad and Tobago",
+        "species": "Unknown",
+        "shu_min": 1000000.0,
+        "shu_max": 1000000.0,
+        "shu_avg": 1000000.0,
+        "shu_display": "1,000,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/7-pot-barrackapore-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -60.7441,
+          10.7741
+        ]
+      },
+      "properties": {
+        "name": "7-Pot Chili Pepper",
+        "full_title": "7-Pot Chili Pepper",
+        "origin": "Trinidad and Tobago",
+        "species": "Unknown",
+        "shu_min": 1000000.0,
+        "shu_max": 1000000.0,
+        "shu_avg": 1000000.0,
+        "shu_display": "1,000,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/7-pot-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -61.2532,
+          10.9006
+        ]
+      },
+      "properties": {
+        "name": "7 Pot Douglah Chili Peppers",
+        "full_title": "7 Pot Douglah Chili Peppers",
+        "origin": "Trinidad and Tobago",
+        "species": "Unknown",
+        "shu_min": 923889.0,
+        "shu_max": 1853986.0,
+        "shu_avg": 1388937.5,
+        "shu_display": "923,889 \u2013 1,853,986 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/7-pot-douglah-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -97.1122,
+          39.3813
+        ]
+      },
+      "properties": {
+        "name": "7 Pot Primo: Superhot Pepper Cross",
+        "full_title": "7 Pot Primo: Superhot Pepper Cross",
+        "origin": "United States",
+        "species": "Capsicum Chinense",
+        "shu_min": 1473480,
+        "shu_max": 1473480,
+        "shu_avg": 1473480,
+        "shu_display": "1,473,480 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/7-pot-primo/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          29.9387,
+          -19.1895
+        ]
+      },
+      "properties": {
+        "name": "African Bird\u2019s Eye / African Devil",
+        "full_title": "African Bird\u2019s Eye / African Devil",
+        "origin": "Zimbabwe",
+        "species": "Unknown",
+        "shu_min": 175000.0,
+        "shu_max": 175000.0,
+        "shu_avg": 175000.0,
+        "shu_display": "175,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/african-bird-s-eye-african-devil/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.5161,
+          -10.1511
+        ]
+      },
+      "properties": {
+        "name": "Aji Amarillo - the Sunny Yellow Chili Pepper",
+        "full_title": "Aji Amarillo - the Sunny Yellow Chili Pepper",
+        "origin": "Peru",
+        "species": "Capsicum Baccatum",
+        "shu_min": 30000.0,
+        "shu_max": 50000.0,
+        "shu_avg": 40000.0,
+        "shu_display": "30,000 \u2013 50,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/aji-amarillo-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.6072,
+          -9.9294
+        ]
+      },
+      "properties": {
+        "name": "Aji Chili Peppers",
+        "full_title": "Aji Chili Peppers",
+        "origin": "Peru",
+        "species": "Capsicum Baccatum",
+        "shu_min": 1177.0,
+        "shu_max": 75000.0,
+        "shu_avg": 38088.5,
+        "shu_display": "1,177 \u2013 75,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/aji-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.8595,
+          -9.7585
+        ]
+      },
+      "properties": {
+        "name": "Aji Cito Chili Peppers",
+        "full_title": "Aji Cito Chili Peppers",
+        "origin": "Peru",
+        "species": "Capsicum Baccatum",
+        "shu_min": 80000.0,
+        "shu_max": 100000.0,
+        "shu_avg": 90000.0,
+        "shu_display": "80,000 \u2013 100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/aji-cito-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -69.761,
+          -26.7833
+        ]
+      },
+      "properties": {
+        "name": "Aji Cristal Peppers - Info, Seeds and More",
+        "full_title": "Aji Cristal Peppers - Info, Seeds and More",
+        "origin": "Chile",
+        "species": "Capsicum Baccatum",
+        "shu_min": 30000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 30000.0,
+        "shu_display": "30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/aji-cristal-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -66.4623,
+          18.2213
+        ]
+      },
+      "properties": {
+        "name": "Aji Dulce: Mild Caribbean Peppers",
+        "full_title": "Aji Dulce: Mild Caribbean Peppers",
+        "origin": "Puerto Rico",
+        "species": "Capsicum Chinense",
+        "shu_min": 0.0,
+        "shu_max": 1000.0,
+        "shu_avg": 500.0,
+        "shu_display": "0 \u2013 1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/aji-dulce/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          26.1995,
+          62.7778
+        ]
+      },
+      "properties": {
+        "name": "Aji Fantasy Chili Pepper",
+        "full_title": "Aji Fantasy Chili Pepper",
+        "origin": "Finland",
+        "species": "Capsicum Bacattum",
+        "shu_min": 500,
+        "shu_max": 1000,
+        "shu_avg": 750,
+        "shu_display": "500 \u2013 1,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/aji-fantasy-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -75.2153,
+          -9.6776
+        ]
+      },
+      "properties": {
+        "name": "Aji Habanero Chili Peppers",
+        "full_title": "Aji Habanero Chili Peppers",
+        "origin": "Peru",
+        "species": "Capsicum Baccatum",
+        "shu_min": 5000.0,
+        "shu_max": 10000.0,
+        "shu_avg": 7500.0,
+        "shu_display": "5,000 \u2013 10,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/aji-habanero-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -75.593,
+          -9.7051
+        ]
+      },
+      "properties": {
+        "name": "Aji Limo Chili Peppers",
+        "full_title": "Aji Limo Chili Peppers",
+        "origin": "Peru",
+        "species": "Unknown",
+        "shu_min": 30000.0,
+        "shu_max": 50000.0,
+        "shu_avg": 40000.0,
+        "shu_display": "30,000 \u2013 50,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/aji-limo-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -75.9062,
+          -9.8348
+        ]
+      },
+      "properties": {
+        "name": "Aji Panca Chili Peppers",
+        "full_title": "Aji Panca Chili Peppers",
+        "origin": "Peru",
+        "species": "Unknown",
+        "shu_min": 500.0,
+        "shu_max": 500.0,
+        "shu_avg": 500.0,
+        "shu_display": "500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/aji-panca-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.083,
+          -10.0369
+        ]
+      },
+      "properties": {
+        "name": "Aji Pineapple Chili Pepper",
+        "full_title": "Aji Pineapple Chili Pepper",
+        "origin": "Peru",
+        "species": "Capsicum baccatum",
+        "shu_min": 20000.0,
+        "shu_max": 20000.0,
+        "shu_avg": 20000.0,
+        "shu_display": "20,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/aji-pineapple-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.8096,
+          39.0605
+        ]
+      },
+      "properties": {
+        "name": "Aji Sivri Chili Pepper",
+        "full_title": "Aji Sivri Chili Pepper",
+        "origin": "Turkey",
+        "species": "Capsicum Annuum",
+        "shu_min": 5000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 17500.0,
+        "shu_display": "5,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/aji-sivri/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -97.1924,
+          39.5921
+        ]
+      },
+      "properties": {
+        "name": "Albino Sweet Pepper",
+        "full_title": "Albino Sweet Pepper",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 0,
+        "shu_max": 0,
+        "shu_avg": 0,
+        "shu_display": "0 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/albino-sweet-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          38.5056,
+          35.013
+        ]
+      },
+      "properties": {
+        "name": "Aleppo Pepper: A Syrian Chili",
+        "full_title": "Aleppo Pepper: A Syrian Chili",
+        "origin": "Syria",
+        "species": "Capsicum Annuum",
+        "shu_min": 10000.0,
+        "shu_max": 10000.0,
+        "shu_avg": 10000.0,
+        "shu_display": "10,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/aleppo-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -119.0394,
+          37.0744
+        ]
+      },
+      "properties": {
+        "name": "Anaheim Pepper: A Popular Mild California Chili",
+        "full_title": "Anaheim Pepper: A Popular Mild California Chili",
+        "origin": "California, United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 500.0,
+        "shu_max": 2500.0,
+        "shu_avg": 1500.0,
+        "shu_display": "500 \u2013 2,500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/anaheim-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -101.5579,
+          23.9505
+        ]
+      },
+      "properties": {
+        "name": "Ancho Peppers: Dried Poblanos",
+        "full_title": "Ancho Peppers: Dried Poblanos",
+        "origin": "Mexico",
+        "species": "Unknown",
+        "shu_min": 1000.0,
+        "shu_max": 2000.0,
+        "shu_avg": 1500.0,
+        "shu_display": "1,000 \u2013 2,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/ancho-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -97.4172,
+          39.7612
+        ]
+      },
+      "properties": {
+        "name": "Ancho Ranchero Peppers",
+        "full_title": "Ancho Ranchero Peppers",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 2000.0,
+        "shu_avg": 1500.0,
+        "shu_display": "1,000 \u2013 2,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/ancho-ranchero-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -80.1958,
+          33.9184
+        ]
+      },
+      "properties": {
+        "name": "Apollo Pepper (A Superhot Chili Pepper)",
+        "full_title": "Apollo Pepper (A Superhot Chili Pepper)",
+        "origin": "South Carolina, United States",
+        "species": "Unknown",
+        "shu_min": 2500000,
+        "shu_max": 3000000,
+        "shu_avg": 2750000,
+        "shu_display": "2,500,000 \u2013 3,000,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/apollo-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.3408,
+          25.0747
+        ]
+      },
+      "properties": {
+        "name": "Bahamian Chili Peppers",
+        "full_title": "Bahamian Chili Peppers",
+        "origin": "Bahamas",
+        "species": "Unknown",
+        "shu_min": 95000.0,
+        "shu_max": 110000.0,
+        "shu_avg": 102500.0,
+        "shu_display": "95,000 \u2013 110,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/bahamian-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -97.742,
+          39.8551
+        ]
+      },
+      "properties": {
+        "name": "Banana Peppers: How Hot They Are, Taste, and Uses",
+        "full_title": "Banana Peppers: How Hot They Are, Taste, and Uses",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 0.0,
+        "shu_max": 500.0,
+        "shu_avg": 250.0,
+        "shu_display": "0 \u2013 500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/banana-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.1584,
+          34.3249
+        ]
+      },
+      "properties": {
+        "name": "Barker's Hot Chili Peppers",
+        "full_title": "Barker's Hot Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 15000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 22500.0,
+        "shu_display": "15,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/barkers-hot-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.1517,
+          22.1992
+        ]
+      },
+      "properties": {
+        "name": "Ghost Pepper (Bhut Jolokia)",
+        "full_title": "Ghost Pepper (Bhut Jolokia) - All About Them",
+        "origin": "India",
+        "species": "Capsicum Chinense",
+        "shu_min": 1000000.0,
+        "shu_max": 1000000.0,
+        "shu_avg": 1000000.0,
+        "shu_display": "1,000,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/bhut-jolokia-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          101.6624,
+          15.1273
+        ]
+      },
+      "properties": {
+        "name": "Bird's Eye Chili Peppers",
+        "full_title": "Bird's Eye Chili Peppers: All About Them",
+        "origin": "Thailand",
+        "species": "Unknown",
+        "shu_min": 50000.0,
+        "shu_max": 100000.0,
+        "shu_avg": 75000.0,
+        "shu_display": "50,000 \u2013 100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/bird-s-eye-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.6396,
+          -16.9707
+        ]
+      },
+      "properties": {
+        "name": "Bishop's Crown Peppers",
+        "full_title": "Bishop's Crown Peppers: All About Them",
+        "origin": "Bolivia",
+        "species": "Capsicum Baccatum",
+        "shu_min": 5000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 17500.0,
+        "shu_display": "5,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/bishops-crown-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -64.8996,
+          -16.9707
+        ]
+      },
+      "properties": {
+        "name": "Bolivian Rainbow Chili Peppers",
+        "full_title": "Bolivian Rainbow Chili Peppers",
+        "origin": "Bolivia",
+        "species": "Unknown",
+        "shu_min": 10000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 20000.0,
+        "shu_display": "10,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/bolivian-rainbow-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -79.3897,
+          35.5569
+        ]
+      },
+      "properties": {
+        "name": "Brain Strain Chili Peppers",
+        "full_title": "Brain Strain Chili Peppers",
+        "origin": "North Carolina, United States",
+        "species": "Capsicum Chinense",
+        "shu_min": 1000000.0,
+        "shu_max": 1350000.0,
+        "shu_avg": 1175000.0,
+        "shu_display": "1,000,000 \u2013 1,350,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/brain-strain-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          13.3964,
+          42.5042
+        ]
+      },
+      "properties": {
+        "name": "Calabrian Chili: Spicy Italian Peppers",
+        "full_title": "Calabrian Chili: Spicy Italian Peppers",
+        "origin": "Italy",
+        "species": "Capsicum Annuum",
+        "shu_min": 25000.0,
+        "shu_max": 40000.0,
+        "shu_avg": 32500.0,
+        "shu_display": "25,000 \u2013 40,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/calabrian-chili/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -101.5885,
+          24.0959
+        ]
+      },
+      "properties": {
+        "name": "Caribbean Red Chili Peppers",
+        "full_title": "Caribbean Red Chili Peppers",
+        "origin": "Mexico",
+        "species": "Unknown",
+        "shu_min": 300000.0,
+        "shu_max": 475000.0,
+        "shu_avg": 387500.0,
+        "shu_display": "300,000 \u2013 475,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/caribbean-red-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          13.2531,
+          42.7687
+        ]
+      },
+      "properties": {
+        "name": "Carmen Italian Sweet Chili Peppers",
+        "full_title": "Carmen Italian Sweet Chili Peppers",
+        "origin": "Italy",
+        "species": "Unknown",
+        "shu_min": 0.0,
+        "shu_max": 500.0,
+        "shu_avg": 250.0,
+        "shu_display": "0 \u2013 500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/carmen-italian-sweet-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -80.4612,
+          34.2491
+        ]
+      },
+      "properties": {
+        "name": "Carolina Cayenne Chili Peppers",
+        "full_title": "Carolina Cayenne Chili Peppers",
+        "origin": "South Carolina, United States",
+        "species": "Unknown",
+        "shu_min": 100000.0,
+        "shu_max": 125000.0,
+        "shu_avg": 112500.0,
+        "shu_display": "100,000 \u2013 125,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/carolina-cayenne-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.0577,
+          34.3308
+        ]
+      },
+      "properties": {
+        "name": "Carolina Reaper: Hottest Pepper in the World",
+        "full_title": "Carolina Reaper: Hottest Pepper in the World - All About It",
+        "origin": "South Carolina, United States",
+        "species": "Capsicum Chinense",
+        "shu_min": 2000000.0,
+        "shu_max": 2000000.0,
+        "shu_avg": 2000000.0,
+        "shu_display": "2,000,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/carolina-reaper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -101.6785,
+          24.2323
+        ]
+      },
+      "properties": {
+        "name": "Cascabel Pepper (Chile Cascabel)",
+        "full_title": "Cascabel Pepper (Chile Cascabel)",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 3000.0,
+        "shu_avg": 2000.0,
+        "shu_display": "1,000 \u2013 3,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/cascabel-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.1025,
+          39.8551
+        ]
+      },
+      "properties": {
+        "name": "Cascabella Peppers",
+        "full_title": "Cascabella Peppers: All About Them",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 1500.0,
+        "shu_max": 6000.0,
+        "shu_avg": 3750.0,
+        "shu_display": "1,500 \u2013 6,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/cascabella-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.4272,
+          39.7612
+        ]
+      },
+      "properties": {
+        "name": "Cayenne Buist's Yellow Chili Pepper",
+        "full_title": "Cayenne Buist's Yellow Chili Pepper",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 1000.0,
+        "shu_avg": 1000.0,
+        "shu_display": "1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/cayenne-buist-s-yellow-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -52.5444,
+          4.3579
+        ]
+      },
+      "properties": {
+        "name": "Cayenne Pepper: Heat Level, Flavor, Uses, Substitutes",
+        "full_title": "Cayenne Pepper: Heat Level, Flavor, Uses, Substitutes",
+        "origin": "French Guiana",
+        "species": "Capsicum Annuum",
+        "shu_min": 30000.0,
+        "shu_max": 50000.0,
+        "shu_avg": 40000.0,
+        "shu_display": "30,000 \u2013 50,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/cayenne-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -53.8044,
+          4.3579
+        ]
+      },
+      "properties": {
+        "name": "Cayenne Golden Chili Peppers",
+        "full_title": "Cayenne Golden Chili Peppers",
+        "origin": "French Guiana",
+        "species": "Capsicum Annuum",
+        "shu_min": 30000.0,
+        "shu_max": 50000.0,
+        "shu_avg": 40000.0,
+        "shu_display": "30,000 \u2013 50,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/cayenne-golden-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.536,
+          34.1019
+        ]
+      },
+      "properties": {
+        "name": "Charleston Hot Chili Peppers",
+        "full_title": "Charleston Hot Chili Peppers",
+        "origin": "South Carolina, United States",
+        "species": "Unknown",
+        "shu_min": 70000.0,
+        "shu_max": 100000.0,
+        "shu_avg": 85000.0,
+        "shu_display": "70,000 \u2013 100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/charleston-hot-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.652,
+          39.5921
+        ]
+      },
+      "properties": {
+        "name": "Cherry Peppers",
+        "full_title": "Cherry Peppers: All About Them",
+        "origin": "United States",
+        "species": "Capsicum Chinense",
+        "shu_min": 5000.0,
+        "shu_max": 5000.0,
+        "shu_avg": 5000.0,
+        "shu_display": "5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/cherry-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -101.8221,
+          24.3509
+        ]
+      },
+      "properties": {
+        "name": "Chilaca Pepper",
+        "full_title": "Chilaca Pepper",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 2500.0,
+        "shu_avg": 1750.0,
+        "shu_display": "1,000 \u2013 2,500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/chilaca-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.0104,
+          24.4444
+        ]
+      },
+      "properties": {
+        "name": "Chile de Arbol Peppers",
+        "full_title": "Chile de Arbol Peppers",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 15000,
+        "shu_max": 65000,
+        "shu_avg": 32500,
+        "shu_display": "15,000 \u2013 65,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/chile-de-arbol-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.2316,
+          24.5068
+        ]
+      },
+      "properties": {
+        "name": "Chilhuacle Amarillo Chili Peppers",
+        "full_title": "Chilhuacle Amarillo Chili Peppers",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000,
+        "shu_max": 2000,
+        "shu_avg": 1500,
+        "shu_display": "1,000 \u2013 2,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/chilhuacle-amarillo-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.4716,
+          24.5343
+        ]
+      },
+      "properties": {
+        "name": "Pequin Peppers",
+        "full_title": "Pequin Peppers - All About Them",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 30000.0,
+        "shu_max": 60000.0,
+        "shu_avg": 45000.0,
+        "shu_display": "30,000 \u2013 60,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/chili-pequin-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.7156,
+          24.5251
+        ]
+      },
+      "properties": {
+        "name": "Chiltepin Peppers - Wild, Tiny U.S. Native Hot Peppers",
+        "full_title": "Chiltepin Peppers - Wild, Tiny U.S. Native Hot Peppers",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 100000.0,
+        "shu_max": 100000.0,
+        "shu_avg": 100000.0,
+        "shu_display": "100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/chiltepin-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.2223,
+          34.5177
+        ]
+      },
+      "properties": {
+        "name": "Chimayo Chili Peppers",
+        "full_title": "Chimayo Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 4000.0,
+        "shu_max": 6000.0,
+        "shu_avg": 5000.0,
+        "shu_display": "4,000 \u2013 6,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/chimayo-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.948,
+          24.4798
+        ]
+      },
+      "properties": {
+        "name": "Chipotle Pepper: Smoked, Dried Jalapeno",
+        "full_title": "Chipotle Pepper: Smoked, Dried Jalapeno",
+        "origin": "Mexico",
+        "species": "Unknown",
+        "shu_min": 2500.0,
+        "shu_max": 8000.0,
+        "shu_avg": 5250.0,
+        "shu_display": "2,500 \u2013 8,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/chipotle-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -61.7623,
+          10.7741
+        ]
+      },
+      "properties": {
+        "name": "Chocolate 7-Pot Chili Pepper",
+        "full_title": "Chocolate 7-Pot Chili Pepper",
+        "origin": "Trinidad and Tobago",
+        "species": "Unknown",
+        "shu_min": 923000.0,
+        "shu_max": 1850000.0,
+        "shu_avg": 1169058.0,
+        "shu_display": "923,000 \u2013 1,850,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/chocolate-7-pot-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.536,
+          33.7349
+        ]
+      },
+      "properties": {
+        "name": "Chocolate Bhutlah",
+        "full_title": "Chocolate Bhutlah",
+        "origin": "South Carolina, United States",
+        "species": "Capsicum Chinense",
+        "shu_min": 2000000.0,
+        "shu_max": 2000000.0,
+        "shu_avg": 2000000.0,
+        "shu_display": "2,000,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/chocolate-bhutlah/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.6742,
+          18.1513
+        ]
+      },
+      "properties": {
+        "name": "Chocolate Habanero Chili Peppers",
+        "full_title": "Chocolate Habanero Chili Peppers",
+        "origin": "Jamaica",
+        "species": "Unknown",
+        "shu_min": 300000.0,
+        "shu_max": 425000.0,
+        "shu_avg": 362500.0,
+        "shu_display": "300,000 \u2013 425,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/chocolate-habanero-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.8781,
+          42.9321
+        ]
+      },
+      "properties": {
+        "name": "Corno di Toro Chili Peppers",
+        "full_title": "Corno di Toro Chili Peppers",
+        "origin": "Italy",
+        "species": "Unknown",
+        "shu_min": 0.0,
+        "shu_max": 500.0,
+        "shu_avg": 250.0,
+        "shu_display": "0 \u2013 500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/corno-di-toro/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.4146,
+          42.9321
+        ]
+      },
+      "properties": {
+        "name": "Corno di Toro Giallo Pepper",
+        "full_title": "Corno di Toro Giallo Pepper",
+        "origin": "Italy",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 1000.0,
+        "shu_avg": 1000.0,
+        "shu_display": "1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/corno-di-toro-giallo-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.083,
+          -10.2652
+        ]
+      },
+      "properties": {
+        "name": "Coronado Chili Peppers",
+        "full_title": "Coronado Chili Peppers",
+        "origin": "Peru",
+        "species": "Unknown",
+        "shu_min": 700.0,
+        "shu_max": 2000.0,
+        "shu_avg": 1350.0,
+        "shu_display": "700 \u2013 2,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/coronado-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.7322,
+          39.3813
+        ]
+      },
+      "properties": {
+        "name": "Cowhorn Chili Peppers: Good Heat, Big Pepper",
+        "full_title": "Cowhorn Chili Peppers: Good Heat, Big Pepper",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 2500.0,
+        "shu_max": 5000.0,
+        "shu_avg": 3750.0,
+        "shu_display": "2,500 \u2013 5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/cowhorn-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -79.2367,
+          21.9469
+        ]
+      },
+      "properties": {
+        "name": "Cubanelle Pepper",
+        "full_title": "Cubanelle Pepper: All About Them",
+        "origin": "Cuba",
+        "species": "Capsicum Annuum",
+        "shu_min": 0.0,
+        "shu_max": 1000.0,
+        "shu_avg": 500.0,
+        "shu_display": "0 \u2013 1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/cubanelle-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.4044,
+          34.6812
+        ]
+      },
+      "properties": {
+        "name": "Dagger Pod Chili Peppers - Cayenne Type",
+        "full_title": "Dagger Pod Chili Peppers - Cayenne Type",
+        "origin": "New Mexico, United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 30000.0,
+        "shu_max": 50000.0,
+        "shu_avg": 40000.0,
+        "shu_display": "30,000 \u2013 50,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/dagger-pod-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -82.0336,
+          28.9445
+        ]
+      },
+      "properties": {
+        "name": "Datil Pepper: Fiery Chili from St. Augustine",
+        "full_title": "Datil Pepper: Fiery Chili from St. Augustine",
+        "origin": "Florida, United States",
+        "species": "Capsicum Chinense",
+        "shu_min": 300000.0,
+        "shu_max": 300000.0,
+        "shu_avg": 300000.0,
+        "shu_display": "300,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/datil-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -78.2907,
+          41.0911
+        ]
+      },
+      "properties": {
+        "name": "Devil's Tongue Pepper",
+        "full_title": "Devil's Tongue Pepper: All About Them",
+        "origin": "Pennsylvania, United States",
+        "species": "Unknown",
+        "shu_min": 125000.0,
+        "shu_max": 325000.0,
+        "shu_avg": 225000.0,
+        "shu_display": "125,000 \u2013 325,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/devils-tongue-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.652,
+          39.1704
+        ]
+      },
+      "properties": {
+        "name": "Diablo Grande Chili Peppers",
+        "full_title": "Diablo Grande Chili Peppers",
+        "origin": "United States",
+        "species": "Unknown",
+        "shu_min": 60000.0,
+        "shu_max": 100000.0,
+        "shu_avg": 80000.0,
+        "shu_display": "60,000 \u2013 100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/diablo-grande-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.5496,
+          39.0605
+        ]
+      },
+      "properties": {
+        "name": "Dolmalik Chili Pepper",
+        "full_title": "Dolmalik Chili Pepper",
+        "origin": "Turkey",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 5000.0,
+        "shu_avg": 3000.0,
+        "shu_display": "1,000 \u2013 5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/dolmalik-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.708,
+          24.3476
+        ]
+      },
+      "properties": {
+        "name": "Dorset Naga: Superhot Pepper with Great Flavor",
+        "full_title": "Dorset Naga: Superhot Pepper with Great Flavor",
+        "origin": "Bangladesh",
+        "species": "Capsicum Chinense",
+        "shu_min": 1500000.0,
+        "shu_max": 1500000.0,
+        "shu_avg": 1500000.0,
+        "shu_display": "1,500,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/dorset-naga-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.2788,
+          47.8249
+        ]
+      },
+      "properties": {
+        "name": "Doux des Landes Chili Pepper",
+        "full_title": "Doux des Landes Chili Pepper",
+        "origin": "France",
+        "species": "Capsicum Annuum",
+        "shu_min": 0,
+        "shu_max": 100,
+        "shu_avg": 50,
+        "shu_display": "0 \u2013 100 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/doux-des-landes-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.7097,
+          54.2379
+        ]
+      },
+      "properties": {
+        "name": "Dragon\u2019s Breath Pepper (Superhot Chili)",
+        "full_title": "Dragon\u2019s Breath Pepper (Superhot Chili)",
+        "origin": "United Kingdom",
+        "species": "Unknown",
+        "shu_min": 2480000.0,
+        "shu_max": 2480000.0,
+        "shu_avg": 2480000.0,
+        "shu_display": "2,480,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/dragons-breath/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          67.6952,
+          28.1864
+        ]
+      },
+      "properties": {
+        "name": "Dundicut Chili Peppers",
+        "full_title": "Dundicut Chili Peppers",
+        "origin": "Pakistan",
+        "species": "Capsicum Annuum",
+        "shu_min": 55000.0,
+        "shu_max": 65000.0,
+        "shu_avg": 60000.0,
+        "shu_display": "55,000 \u2013 65,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/dundicut-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          16.6791,
+          45.665
+        ]
+      },
+      "properties": {
+        "name": "Elephant's Ear Chili Pepper",
+        "full_title": "Elephant's Ear Chili Pepper",
+        "origin": "Croatia",
+        "species": "Capsicum annuum",
+        "shu_min": 0,
+        "shu_max": 500,
+        "shu_avg": 250,
+        "shu_display": "0 \u2013 500 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/elephant-s-ear-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.6769,
+          34.7905
+        ]
+      },
+      "properties": {
+        "name": "Espanola Chili Peppers",
+        "full_title": "Espanola Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 1500.0,
+        "shu_max": 2000.0,
+        "shu_avg": 1750.0,
+        "shu_display": "1,500 \u2013 2,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/espanola-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.6188,
+          48.2209
+        ]
+      },
+      "properties": {
+        "name": "Espelette Peppers (a.k.a. Piment d'Espelette)",
+        "full_title": "Espelette Peppers (a.k.a. Piment d'Espelette)",
+        "origin": "France",
+        "species": "Capsicum Annuum",
+        "shu_min": 4000.0,
+        "shu_max": 4000.0,
+        "shu_avg": 4000.0,
+        "shu_display": "4,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/espelette-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.4828,
+          6.5713
+        ]
+      },
+      "properties": {
+        "name": "Fatalii Chili Peppers",
+        "full_title": "Fatalii Chili Peppers",
+        "origin": "Central African Republic",
+        "species": "Unknown",
+        "shu_min": 125000.0,
+        "shu_max": 325000.0,
+        "shu_avg": 225000.0,
+        "shu_display": "125,000 \u2013 325,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/fatalii-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.8536,
+          39.4781
+        ]
+      },
+      "properties": {
+        "name": "Fish Peppers",
+        "full_title": "Fish Peppers",
+        "origin": "Maryland, United States",
+        "species": "Unknown",
+        "shu_min": 5000,
+        "shu_max": 30000,
+        "shu_avg": 17500,
+        "shu_display": "5,000 \u2013 30,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/fish-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -119.6994,
+          37.4704
+        ]
+      },
+      "properties": {
+        "name": "Fresno Pepper - Much Like a Jalapeno",
+        "full_title": "Fresno Pepper - Much Like a Jalapeno",
+        "origin": "California, United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 2500.0,
+        "shu_max": 10000.0,
+        "shu_avg": 6250.0,
+        "shu_display": "2,500 \u2013 10,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/fresno-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.3507,
+          41.2949
+        ]
+      },
+      "properties": {
+        "name": "Frontera Sweet Peppers",
+        "full_title": "Frontera Sweet Peppers",
+        "origin": "Spain",
+        "species": "Capsicum chinense",
+        "shu_min": 0.0,
+        "shu_max": 1000.0,
+        "shu_avg": 500.0,
+        "shu_display": "0 \u2013 1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/frontera-sweet-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.0396,
+          42.7687
+        ]
+      },
+      "properties": {
+        "name": "Gatherer's Gold Chili Pepper",
+        "full_title": "Gatherer's Gold Chili Pepper",
+        "origin": "Italy",
+        "species": "Unknown",
+        "shu_min": 0,
+        "shu_max": 100,
+        "shu_avg": 50,
+        "shu_display": "0 \u2013 100 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/gatherer-s-gold-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          20.1593,
+          47.0603
+        ]
+      },
+      "properties": {
+        "name": "Giant Szegedi Chili Pepper",
+        "full_title": "Giant Szegedi Chili Pepper",
+        "origin": "Hungary",
+        "species": "Capsicum Annuum",
+        "shu_min": 0,
+        "shu_max": 500,
+        "shu_avg": 250,
+        "shu_display": "0 \u2013 500 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/giant-szegedi-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.6161,
+          41.6256
+        ]
+      },
+      "properties": {
+        "name": "Gibralta / Spanish Naga Chili Peppers",
+        "full_title": "Gibralta / Spanish Naga Chili Peppers",
+        "origin": "Spain",
+        "species": "Unknown",
+        "shu_min": 1086844.0,
+        "shu_max": 1086844.0,
+        "shu_avg": 1086844.0,
+        "shu_display": "1,086,844 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/gibralta-spanish-naga-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -103.1544,
+          24.4012
+        ]
+      },
+      "properties": {
+        "name": "Guajillo Pepper: a Favorite Mexican Pepper",
+        "full_title": "Guajillo Pepper: a Favorite Mexican Pepper",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 2500.0,
+        "shu_max": 5000.0,
+        "shu_avg": 3750.0,
+        "shu_display": "2,500 \u2013 5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/guajillo-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -4.2126,
+          41.7073
+        ]
+      },
+      "properties": {
+        "name": "Guindilla Pepper",
+        "full_title": "Guindilla Pepper - All About Them",
+        "origin": "Spain",
+        "species": "Capsicum annuum",
+        "shu_min": 1000.0,
+        "shu_max": 2000.0,
+        "shu_avg": 1500.0,
+        "shu_display": "1,000 \u2013 2,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/guindilla-pepper-all-about-them/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          78.6853,
+          22.5843
+        ]
+      },
+      "properties": {
+        "name": "Guntur Sannam Chili Peppers",
+        "full_title": "Guntur Sannam Chili Peppers",
+        "origin": "India",
+        "species": "Capsicum Annuum",
+        "shu_min": 35000.0,
+        "shu_max": 40000.0,
+        "shu_avg": 37500.0,
+        "shu_display": "35,000 \u2013 40,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/guntur-sannam-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -120.3594,
+          37.0744
+        ]
+      },
+      "properties": {
+        "name": "Gypsy Pepper: A Sweet Hybrid Pepper",
+        "full_title": "Gypsy Pepper: A Sweet Hybrid Pepper",
+        "origin": "California, United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 0,
+        "shu_max": 0,
+        "shu_avg": 0,
+        "shu_display": "0 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/gypsy-hybrid-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -103.3217,
+          24.2943
+        ]
+      },
+      "properties": {
+        "name": "Habanero Pepper: Profile, Uses, Heat",
+        "full_title": "Habanero Pepper: Profile, Uses, Heat",
+        "origin": "Mexico",
+        "species": "Capsicum Chinense",
+        "shu_min": 100000.0,
+        "shu_max": 350000.0,
+        "shu_avg": 225000.0,
+        "shu_display": "100,000 \u2013 350,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/habanero-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.9984,
+          34.8289
+        ]
+      },
+      "properties": {
+        "name": "Hatch Chile Peppers",
+        "full_title": "Hatch Chile Peppers: All About Them",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 1000.0,
+        "shu_max": 8000.0,
+        "shu_avg": 4500.0,
+        "shu_display": "1,000 \u2013 8,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/hatch-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.4272,
+          39.0013
+        ]
+      },
+      "properties": {
+        "name": "Hawaiian Sweet Hot Chili Peppers",
+        "full_title": "Hawaiian Sweet Hot Chili Peppers",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 5000.0,
+        "shu_avg": 3000.0,
+        "shu_display": "1,000 \u2013 5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/hawaiian-sweet-hot-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -103.4394,
+          24.1658
+        ]
+      },
+      "properties": {
+        "name": "Hidalgo Chili Peppers",
+        "full_title": "Hidalgo Chili Peppers",
+        "origin": "Mexico",
+        "species": "Unknown",
+        "shu_min": 6000.0,
+        "shu_max": 17000.0,
+        "shu_avg": 11500.0,
+        "shu_display": "6,000 \u2013 17,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/hidalgo-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          102.5319,
+          35.4867
+        ]
+      },
+      "properties": {
+        "name": "HJ8 Total Eclipse Space Chili Pepper",
+        "full_title": "HJ8 Total Eclipse Space Chili Pepper",
+        "origin": "China",
+        "species": "Unknown",
+        "shu_min": 1000.0,
+        "shu_max": 1000.0,
+        "shu_avg": 1000.0,
+        "shu_display": "1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/hj8-total-eclipse-space-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4993,
+          47.4563
+        ]
+      },
+      "properties": {
+        "name": "Hungarian Wax Peppers",
+        "full_title": "Hungarian Wax Peppers - All About Them",
+        "origin": "Hungary",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 15000.0,
+        "shu_avg": 8000.0,
+        "shu_display": "1,000 \u2013 15,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/hungarian-wax-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.3697,
+          54.6339
+        ]
+      },
+      "properties": {
+        "name": "Infinity Chili Peppers",
+        "full_title": "Infinity Chili Peppers",
+        "origin": "United Kingdom",
+        "species": "Unknown",
+        "shu_min": 1176182.0,
+        "shu_max": 1176182.0,
+        "shu_avg": 1176182.0,
+        "shu_display": "1,176,182 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/infinity-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.8964,
+          42.5042
+        ]
+      },
+      "properties": {
+        "name": "Italian Long Hot Peppers",
+        "full_title": "Italian Long Hot Peppers",
+        "origin": "Italy",
+        "species": "Capsicum Annuum",
+        "shu_min": 100.0,
+        "shu_max": 1000.0,
+        "shu_avg": 550.0,
+        "shu_display": "100 \u2013 1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/italian-long-hot-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -103.5002,
+          24.0238
+        ]
+      },
+      "properties": {
+        "name": "Jalape\u00f1o Pepper: Heat Level, Flavor, Uses, Substitutes",
+        "full_title": "Jalape\u00f1o Pepper: Heat Level, Flavor, Uses, Substitutes",
+        "origin": "Mexico",
+        "species": "Capsicum annuum",
+        "shu_min": 2500.0,
+        "shu_max": 8000.0,
+        "shu_avg": 5250.0,
+        "shu_display": "2,500 \u2013 8,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/jalapeno-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.8223,
+          31.804
+        ]
+      },
+      "properties": {
+        "name": "Jaloro Chili Peppers",
+        "full_title": "Jaloro Chili Peppers - All About Them",
+        "origin": "Texas, United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 5000.0,
+        "shu_max": 5000.0,
+        "shu_avg": 5000.0,
+        "shu_display": "5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/jaloro-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.6417,
+          18.4864
+        ]
+      },
+      "properties": {
+        "name": "Jamaican Hot Chili Peppers",
+        "full_title": "Jamaican Hot Chili Peppers",
+        "origin": "Jamaica",
+        "species": "Unknown",
+        "shu_min": 100000.0,
+        "shu_max": 200000.0,
+        "shu_avg": 150000.0,
+        "shu_display": "100,000 \u2013 200,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/jamaican-hot-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -103.5002,
+          23.8771
+        ]
+      },
+      "properties": {
+        "name": "Japones Pepper (Chile Japones)",
+        "full_title": "Japones Pepper (Chile Japones)",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 15000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 22500.0,
+        "shu_display": "15,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/japones-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.9306,
+          22.4372
+        ]
+      },
+      "properties": {
+        "name": "Jwala Finger Hot Chili Peppers",
+        "full_title": "Jwala Finger Hot Chili Peppers",
+        "origin": "India",
+        "species": "Unknown",
+        "shu_min": 20000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 25000.0,
+        "shu_display": "20,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/jwala-finger-hot-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.9306,
+          21.9611
+        ]
+      },
+      "properties": {
+        "name": "Kashmiri Chili: Vibrant Red Peppers",
+        "full_title": "Kashmiri Chili: Vibrant Red Peppers",
+        "origin": "India",
+        "species": "Unknown",
+        "shu_min": 1000.0,
+        "shu_max": 2000.0,
+        "shu_avg": 1500.0,
+        "shu_display": "1,000 \u2013 2,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/kashmiri-chili/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.0297,
+          54.2379
+        ]
+      },
+      "properties": {
+        "name": "Komodo Dragon Chili Pepper",
+        "full_title": "Komodo Dragon Chili Pepper",
+        "origin": "United Kingdom",
+        "species": "Unknown",
+        "shu_min": 1400000,
+        "shu_max": 2200000,
+        "shu_avg": 1800000,
+        "shu_display": "1,400,000 \u2013 2,200,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/komodo-dragon-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -75.9062,
+          -10.4674
+        ]
+      },
+      "properties": {
+        "name": "Lemon Drop Pepper",
+        "full_title": "Lemon Drop Pepper: All About It",
+        "origin": "Peru",
+        "species": "Unknown",
+        "shu_min": 15000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 22500.0,
+        "shu_display": "15,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/lemon-drop-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.0183,
+          51.1335
+        ]
+      },
+      "properties": {
+        "name": "Liebesapfel Chili Pepper",
+        "full_title": "Liebesapfel Chili Pepper",
+        "origin": "Germany",
+        "species": "Unknown",
+        "shu_min": 0,
+        "shu_max": 500,
+        "shu_avg": 250,
+        "shu_display": "0 \u2013 500 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/liebesapfel-sweet-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -55.9118,
+          3.693
+        ]
+      },
+      "properties": {
+        "name": "Madame Jeanette Chili Peppers",
+        "full_title": "Madame Jeanette Chili Peppers",
+        "origin": "Suriname",
+        "species": "Unknown",
+        "shu_min": 125000.0,
+        "shu_max": 325000.0,
+        "shu_avg": 225000.0,
+        "shu_display": "125,000 \u2013 325,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/madame-jeanette-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -50.9898,
+          -9.5889
+        ]
+      },
+      "properties": {
+        "name": "Malagueta Chili Peppers",
+        "full_title": "Malagueta Chili Peppers",
+        "origin": "Brazil",
+        "species": "Unknown",
+        "shu_min": 60000.0,
+        "shu_max": 100000.0,
+        "shu_avg": 80000.0,
+        "shu_display": "60,000 \u2013 100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/malagueta-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -103.4394,
+          23.7351
+        ]
+      },
+      "properties": {
+        "name": "Manzano Peppers",
+        "full_title": "Manzano Peppers: All About Them",
+        "origin": "Mexico",
+        "species": "Capsicum Pubescens",
+        "shu_min": 10000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 20000.0,
+        "shu_display": "10,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/manzano-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -103.3217,
+          23.6066
+        ]
+      },
+      "properties": {
+        "name": "Mirasol Peppers",
+        "full_title": "Mirasol Peppers: All About Them",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 2500.0,
+        "shu_max": 5000.0,
+        "shu_avg": 3750.0,
+        "shu_display": "2,500 \u2013 5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/mirasol-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -103.1544,
+          23.4997
+        ]
+      },
+      "properties": {
+        "name": "Morita Chili Peppers",
+        "full_title": "Morita Chili Peppers",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 2500.0,
+        "shu_max": 10000.0,
+        "shu_avg": 6250.0,
+        "shu_display": "2,500 \u2013 10,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/morita-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.8235,
+          -6.2704
+        ]
+      },
+      "properties": {
+        "name": "Moshi Chili Pepper",
+        "full_title": "Moshi Chili Pepper",
+        "origin": "Tanzania",
+        "species": "Unknown",
+        "shu_min": 50000,
+        "shu_max": 75000,
+        "shu_avg": 62500,
+        "shu_display": "50,000 \u2013 75,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/moshi-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.948,
+          23.4211
+        ]
+      },
+      "properties": {
+        "name": "Mulato Pepper",
+        "full_title": "Mulato Pepper",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 2500.0,
+        "shu_max": 3000.0,
+        "shu_avg": 2750.0,
+        "shu_display": "2,500 \u2013 3,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/mulato-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          89.448,
+          24.3476
+        ]
+      },
+      "properties": {
+        "name": "Naga Morich: Superhot Pepper from Bangladesh",
+        "full_title": "Naga Morich: Superhot Pepper from Bangladesh",
+        "origin": "Bangladesh",
+        "species": "Capsicum Chinense",
+        "shu_min": 1500000.0,
+        "shu_max": 1500000.0,
+        "shu_avg": 1500000.0,
+        "shu_display": "1,500,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/naga-morich/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.3697,
+          53.8419
+        ]
+      },
+      "properties": {
+        "name": "Naga Viper Chili Peppers",
+        "full_title": "Naga Viper Chili Peppers",
+        "origin": "United Kingdom",
+        "species": "Capsicum Chinense",
+        "shu_min": 1382118.0,
+        "shu_max": 1382118.0,
+        "shu_avg": 1382118.0,
+        "shu_display": "1,382,118 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/naga-viper-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -106.3198,
+          34.7905
+        ]
+      },
+      "properties": {
+        "name": "New Mex Big Jim Chili Peppers",
+        "full_title": "New Mex Big Jim Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 2500.0,
+        "shu_max": 3000.0,
+        "shu_avg": 2750.0,
+        "shu_display": "2,500 \u2013 3,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/new-mex-big-jim-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -106.5923,
+          34.6812
+        ]
+      },
+      "properties": {
+        "name": "New Mex XX Hot Chili Peppers",
+        "full_title": "New Mex XX Hot Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 60000.0,
+        "shu_max": 70000.0,
+        "shu_avg": 65000.0,
+        "shu_display": "60,000 \u2013 70,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/new-mex-xx-hot-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -106.7744,
+          34.5177
+        ]
+      },
+      "properties": {
+        "name": "New Mexico 6-4 Heritage Chili Peppers",
+        "full_title": "New Mexico 6-4 Heritage Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 3000.0,
+        "shu_max": 5000.0,
+        "shu_avg": 4000.0,
+        "shu_display": "3,000 \u2013 5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/new-mexico-6-4-heritage-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -106.8384,
+          34.3249
+        ]
+      },
+      "properties": {
+        "name": "New Mexico Scorpion Chili Peppers",
+        "full_title": "New Mexico Scorpion Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 1191595.0,
+        "shu_max": 1191595.0,
+        "shu_avg": 1191595.0,
+        "shu_display": "1,191,595 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/new-mexico-scorpion-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -106.7744,
+          34.132
+        ]
+      },
+      "properties": {
+        "name": "NuMex CaJohns Serrano - One HUGE Serrano",
+        "full_title": "NuMex CaJohns Serrano - One HUGE Serrano",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 5000.0,
+        "shu_max": 5000.0,
+        "shu_avg": 5000.0,
+        "shu_display": "5,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/numex-cajohns-serrano/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -106.5923,
+          33.9685
+        ]
+      },
+      "properties": {
+        "name": "NuMex Joe E. Parker Chili Peppers",
+        "full_title": "NuMex Joe E. Parker Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 1500.0,
+        "shu_max": 3000.0,
+        "shu_avg": 2250.0,
+        "shu_display": "1,500 \u2013 3,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/numex-joe-e-parker-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -106.3198,
+          33.8592
+        ]
+      },
+      "properties": {
+        "name": "NuMex R Naky Chili Peppers",
+        "full_title": "NuMex R Naky Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 250.0,
+        "shu_max": 750.0,
+        "shu_avg": 500.0,
+        "shu_display": "250 \u2013 750 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/numex-r-naky-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.6949,
+          15.4625
+        ]
+      },
+      "properties": {
+        "name": "Orange Thai Pepper",
+        "full_title": "Orange Thai Pepper: All About Them",
+        "origin": "Thailand",
+        "species": "Unknown",
+        "shu_min": 50000.0,
+        "shu_max": 100000.0,
+        "shu_avg": 75000.0,
+        "shu_display": "50,000 \u2013 100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/orange-thai-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.8393,
+          47.0603
+        ]
+      },
+      "properties": {
+        "name": "Paprika Peppers",
+        "full_title": "Paprika Peppers",
+        "origin": "Hungary",
+        "species": "Capsicum annuum",
+        "shu_min": 250.0,
+        "shu_max": 1000.0,
+        "shu_avg": 625.0,
+        "shu_display": "250 \u2013 1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/paprika-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.4993,
+          46.6643
+        ]
+      },
+      "properties": {
+        "name": "Paprika Kalocsa",
+        "full_title": "Paprika Kalocsa",
+        "origin": "Hungary",
+        "species": "Capsicum annuum",
+        "shu_min": 500,
+        "shu_max": 1500,
+        "shu_avg": 1000,
+        "shu_display": "500 \u2013 1,500 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/paprika-kalocsa/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.7156,
+          23.3758
+        ]
+      },
+      "properties": {
+        "name": "Pasilla Peppers",
+        "full_title": "Pasilla Peppers: All About Them",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 250.0,
+        "shu_max": 3999.0,
+        "shu_avg": 2124.5,
+        "shu_display": "250 \u2013 3,999 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/pasilla-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.0577,
+          33.506
+        ]
+      },
+      "properties": {
+        "name": "Pepper X (Hottest Pepper in the World) \u2013 Latest News and Information",
+        "full_title": "Pepper X (Hottest Pepper in the World) \u2013 Latest News and Information",
+        "origin": "South Carolina, United States",
+        "species": "Unknown",
+        "shu_min": 2693000,
+        "shu_max": 2693000,
+        "shu_avg": 2693000,
+        "shu_display": "2,693,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/news/pepper-x-latest-news-and-information/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.0396,
+          42.2397
+        ]
+      },
+      "properties": {
+        "name": "Pepperoncini Peppers",
+        "full_title": "Pepperoncini Peppers - All About Them - Scoville & More",
+        "origin": "Italy",
+        "species": "Capsicum Annuum",
+        "shu_min": 100.0,
+        "shu_max": 500.0,
+        "shu_avg": 300.0,
+        "shu_display": "100 \u2013 500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/pepperoncini-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.1025,
+          38.9075
+        ]
+      },
+      "properties": {
+        "name": "Peter Peppers: The Oddly Shaped Chili Pepper",
+        "full_title": "Peter Peppers: The Oddly Shaped Chili Pepper",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 30000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 30000.0,
+        "shu_display": "30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/peter-pepper-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          23.9137,
+          -28.3783
+        ]
+      },
+      "properties": {
+        "name": "Peppadew\u00ae Peppers (Sweet Piquant\u00e9) \u2013 Everything You Need to Know",
+        "full_title": "Peppadew\u00ae Peppers (Sweet Piquant\u00e9) \u2013 Everything You Need to Know",
+        "origin": "South Africa",
+        "species": "CAPSICUM BACCATUM",
+        "shu_min": 1177.0,
+        "shu_max": 1177.0,
+        "shu_avg": 1177.0,
+        "shu_display": "1,177 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/picuante-peppadew-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.9588,
+          47.8249
+        ]
+      },
+      "properties": {
+        "name": "Piment de Bresse Pepper",
+        "full_title": "Piment de Bresse Pepper",
+        "origin": "France",
+        "species": "Capsicum Annuum",
+        "shu_min": 100,
+        "shu_max": 500,
+        "shu_avg": 300,
+        "shu_display": "100 \u2013 500 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/piment-de-bresse-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -4.6909,
+          41.4784
+        ]
+      },
+      "properties": {
+        "name": "Pimento Peppers - What Are They?",
+        "full_title": "Pimento Peppers - What Are They?",
+        "origin": "Spain",
+        "species": "Capsicum Annuum",
+        "shu_min": 100.0,
+        "shu_max": 500.0,
+        "shu_avg": 300.0,
+        "shu_display": "100 \u2013 500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/pimento-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -4.6909,
+          41.1113
+        ]
+      },
+      "properties": {
+        "name": "Padron Peppers (Pimiento de Padron)",
+        "full_title": "Padron Peppers (Pimiento de Padron)",
+        "origin": "Spain",
+        "species": "Capsicum Annuum",
+        "shu_min": 500.0,
+        "shu_max": 2500.0,
+        "shu_avg": 1500.0,
+        "shu_display": "500 \u2013 2,500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/pimiento-de-padron/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -4.2126,
+          40.8825
+        ]
+      },
+      "properties": {
+        "name": "Piquillo Peppers",
+        "full_title": "Piquillo Peppers - All About Them",
+        "origin": "Spain",
+        "species": "Unknown",
+        "shu_min": 500.0,
+        "shu_max": 1000.0,
+        "shu_avg": 750.0,
+        "shu_display": "500 \u2013 1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/piquillo-de-lodosa-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.4716,
+          23.3666
+        ]
+      },
+      "properties": {
+        "name": "Poblano Peppers - Beloved Mexican Pepper (All About Them)",
+        "full_title": "Poblano Peppers - Beloved Mexican Pepper (All About Them)",
+        "origin": "Mexico",
+        "species": "Unknown",
+        "shu_min": 1000.0,
+        "shu_max": 2000.0,
+        "shu_avg": 1500.0,
+        "shu_display": "1,000 \u2013 2,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/poblano-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.605,
+          39.1902
+        ]
+      },
+      "properties": {
+        "name": "Pueblo Chiles",
+        "full_title": "Pueblo Chiles - All About Them",
+        "origin": "Colorado, United States",
+        "species": "Unknown",
+        "shu_min": 5000.0,
+        "shu_max": 20000.0,
+        "shu_avg": 12500.0,
+        "shu_display": "5,000 \u2013 20,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/pueblo-chiles/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.2316,
+          23.3941
+        ]
+      },
+      "properties": {
+        "name": "Purple Jalapeno Peppers",
+        "full_title": "Purple Jalapeno Peppers",
+        "origin": "Mexico",
+        "species": "Unknown",
+        "shu_min": 2500.0,
+        "shu_max": 8000.0,
+        "shu_avg": 5250.0,
+        "shu_display": "2,500 \u2013 8,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/purple-jalapeno-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.4146,
+          42.0762
+        ]
+      },
+      "properties": {
+        "name": "Purple Marconi Chili Pepper",
+        "full_title": "Purple Marconi Chili Pepper",
+        "origin": "Italy",
+        "species": "Unknown",
+        "shu_min": 0,
+        "shu_max": 100,
+        "shu_avg": 50,
+        "shu_display": "0 \u2013 100 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/purple-marconi-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -102.0104,
+          23.4565
+        ]
+      },
+      "properties": {
+        "name": "Puya Chili Peppers (Chile Puya)",
+        "full_title": "Puya Chili Peppers (Chile Puya)",
+        "origin": "Mexico",
+        "species": "Capsicum Anuum",
+        "shu_min": 5000.0,
+        "shu_max": 8000.0,
+        "shu_avg": 6500.0,
+        "shu_display": "5,000 \u2013 8,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/puya-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -92.306,
+          30.9375
+        ]
+      },
+      "properties": {
+        "name": "Red Amazon Chili Peppers",
+        "full_title": "Red Amazon Chili Peppers",
+        "origin": "Louisiana, United States",
+        "species": "Unknown",
+        "shu_min": 75000.0,
+        "shu_max": 75000.0,
+        "shu_avg": 75000.0,
+        "shu_display": "75,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/red-amazon-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -119.6994,
+          36.6784
+        ]
+      },
+      "properties": {
+        "name": "Red Savina Habanero Peppers",
+        "full_title": "Red Savina Habanero Peppers",
+        "origin": "California, United States",
+        "species": "Capsicum Chinense",
+        "shu_min": 200000.0,
+        "shu_max": 580000.0,
+        "shu_avg": 390000.0,
+        "shu_display": "200,000 \u2013 580,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/red-savina-habanero-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -75.593,
+          -10.5971
+        ]
+      },
+      "properties": {
+        "name": "Rocotillo Chili Peppers",
+        "full_title": "Rocotillo Chili Peppers",
+        "origin": "Peru",
+        "species": "Capsicum baccatum",
+        "shu_min": 1500.0,
+        "shu_max": 2500.0,
+        "shu_avg": 2000.0,
+        "shu_display": "1,500 \u2013 2,500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/rocotillo-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -75.2153,
+          -10.6246
+        ]
+      },
+      "properties": {
+        "name": "Rocoto Peppers",
+        "full_title": "Rocoto Peppers: All About Them",
+        "origin": "Peru",
+        "species": "Capsicum Pubescens",
+        "shu_min": 30000.0,
+        "shu_max": 100000.0,
+        "shu_avg": 65000.0,
+        "shu_display": "30,000 \u2013 100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/rocoto-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.8595,
+          -10.5437
+        ]
+      },
+      "properties": {
+        "name": "Roquito Peppers: Sweet and Spicy Pepper Pearls",
+        "full_title": "Roquito Peppers: Sweet and Spicy Pepper Pearls",
+        "origin": "Peru",
+        "species": "Unknown",
+        "shu_min": 1000,
+        "shu_max": 2000,
+        "shu_avg": 1500,
+        "shu_display": "1,000 \u2013 2,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/roquito-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.9984,
+          33.8209
+        ]
+      },
+      "properties": {
+        "name": "Sandia Chili Peppers",
+        "full_title": "Sandia Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 5000.0,
+        "shu_max": 7000.0,
+        "shu_avg": 6000.0,
+        "shu_display": "5,000 \u2013 7,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-heat-chili-peppers/sandia-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.6769,
+          33.8592
+        ]
+      },
+      "properties": {
+        "name": "Santa Fe Grande Chili Peppers",
+        "full_title": "Santa Fe Grande Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Capsicum annuum",
+        "shu_min": 500.0,
+        "shu_max": 700.0,
+        "shu_avg": 600.0,
+        "shu_display": "500 \u2013 700 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/santa-fe-grande-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          139.2372,
+          36.3865
+        ]
+      },
+      "properties": {
+        "name": "Santaka Chili Peppers",
+        "full_title": "Santaka Chili Peppers",
+        "origin": "Japan",
+        "species": "Unknown",
+        "shu_min": 40000.0,
+        "shu_max": 50000.0,
+        "shu_avg": 45000.0,
+        "shu_display": "40,000 \u2013 50,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/santaka-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.6417,
+          17.8161
+        ]
+      },
+      "properties": {
+        "name": "Scotch Bonnet Chili Peppers",
+        "full_title": "Scotch Bonnet Chili Peppers - All About Them",
+        "origin": "Jamaica",
+        "species": "Unknown",
+        "shu_min": 100000.0,
+        "shu_max": 350000.0,
+        "shu_avg": 225000.0,
+        "shu_display": "100,000 \u2013 350,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/scotch-bonnet-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.8781,
+          42.0762
+        ]
+      },
+      "properties": {
+        "name": "Senise Chili Peppers",
+        "full_title": "Senise Chili Peppers - All About Them",
+        "origin": "Italy",
+        "species": "Unknown",
+        "shu_min": 0,
+        "shu_max": 500,
+        "shu_avg": 250,
+        "shu_display": "0 \u2013 500 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/senise-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -101.8221,
+          23.55
+        ]
+      },
+      "properties": {
+        "name": "Serrano Peppers",
+        "full_title": "Serrano Peppers",
+        "origin": "Mexico",
+        "species": "Unknown",
+        "shu_min": 10000.0,
+        "shu_max": 23000.0,
+        "shu_avg": 16500.0,
+        "shu_display": "10,000 \u2013 23,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/serrano-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.6161,
+          40.9641
+        ]
+      },
+      "properties": {
+        "name": "Shepherds Ramshorn",
+        "full_title": "Shepherds Ramshorn",
+        "origin": "Spain",
+        "species": "Capsicum annuum",
+        "shu_min": 100,
+        "shu_max": 1000,
+        "shu_avg": 500,
+        "shu_display": "100 \u2013 1,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/shepherds-ramshorn/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          25.2315,
+          42.7614
+        ]
+      },
+      "properties": {
+        "name": "Shipkas Chili Peppers",
+        "full_title": "Shipkas Chili Peppers",
+        "origin": "Bulgaria",
+        "species": "Unknown",
+        "shu_min": 5000.0,
+        "shu_max": 30000.0,
+        "shu_avg": 17500.0,
+        "shu_display": "5,000 \u2013 30,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/shipkas-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          138.2697,
+          36.7216
+        ]
+      },
+      "properties": {
+        "name": "Shishito Peppers",
+        "full_title": "Shishito Peppers: All About Them",
+        "origin": "Japan",
+        "species": "Capsicum Annuum",
+        "shu_min": 50.0,
+        "shu_max": 200.0,
+        "shu_avg": 125.0,
+        "shu_display": "50 \u2013 200 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/shishito-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.4044,
+          33.9685
+        ]
+      },
+      "properties": {
+        "name": "Sonora Chili Peppers",
+        "full_title": "Sonora Chili Peppers",
+        "origin": "New Mexico, United States",
+        "species": "Unknown",
+        "shu_min": 300.0,
+        "shu_max": 600.0,
+        "shu_avg": 450.0,
+        "shu_display": "300 \u2013 600 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/sonora-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -97.742,
+          38.9075
+        ]
+      },
+      "properties": {
+        "name": "Sport Peppers",
+        "full_title": "Sport Peppers: All About Them",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 10000.0,
+        "shu_max": 23000.0,
+        "shu_avg": 16500.0,
+        "shu_display": "10,000 \u2013 23,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sport-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.6188,
+          47.4289
+        ]
+      },
+      "properties": {
+        "name": "Sucette de Provence Chili Pepper",
+        "full_title": "Sucette de Provence Chili Pepper",
+        "origin": "France",
+        "species": "Capsicum Annuum",
+        "shu_min": 100,
+        "shu_max": 23000,
+        "shu_avg": 11550,
+        "shu_display": "100 \u2013 23,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/sucette-de-provence-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.6072,
+          -10.3728
+        ]
+      },
+      "properties": {
+        "name": "Sugar Rush Chili Peppers",
+        "full_title": "Sugar Rush Chili Peppers",
+        "origin": "Peru",
+        "species": "Capsicum Bacattum",
+        "shu_min": 80000,
+        "shu_max": 100000,
+        "shu_avg": 90000,
+        "shu_display": "80,000 \u2013 100,000 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/sugar-rush-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.6135,
+          51.9725
+        ]
+      },
+      "properties": {
+        "name": "Super Chili Chili Peppers",
+        "full_title": "Super Chili Chili Peppers",
+        "origin": "Netherlands",
+        "species": "Unknown",
+        "shu_min": 40000.0,
+        "shu_max": 50000.0,
+        "shu_avg": 45000.0,
+        "shu_display": "40,000 \u2013 50,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/super-chili-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          13.2531,
+          42.2397
+        ]
+      },
+      "properties": {
+        "name": "Super Shepherd Chili Pepper",
+        "full_title": "Super Shepherd Chili Pepper",
+        "origin": "Italy",
+        "species": "Capsicum Annuum",
+        "shu_min": 0,
+        "shu_max": 0,
+        "shu_avg": 0,
+        "shu_display": "0 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/super-shepherd-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -97.4172,
+          39.0013
+        ]
+      },
+      "properties": {
+        "name": "Sweet Apple Pepper",
+        "full_title": "Sweet Apple Pepper",
+        "origin": "United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 1000.0,
+        "shu_avg": 1000.0,
+        "shu_display": "1,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/sweet-apple-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -101.6785,
+          23.6686
+        ]
+      },
+      "properties": {
+        "name": "Bell Peppers",
+        "full_title": "Bell Peppers: All About Them",
+        "origin": "Mexico",
+        "species": "Capsicum Annuum",
+        "shu_min": 0,
+        "shu_max": 0,
+        "shu_avg": 0,
+        "shu_display": "0 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/sweet-bell-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -101.5885,
+          23.805
+        ]
+      },
+      "properties": {
+        "name": "Tabasco Peppers",
+        "full_title": "Tabasco Peppers: All About Them",
+        "origin": "Mexico",
+        "species": "Capsicum Frutescens",
+        "shu_min": 30000.0,
+        "shu_max": 50000.0,
+        "shu_avg": 40000.0,
+        "shu_display": "30,000 \u2013 50,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/tabasco-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          78.6853,
+          21.814
+        ]
+      },
+      "properties": {
+        "name": "Tabiche Chili Peppers",
+        "full_title": "Tabiche Chili Peppers",
+        "origin": "India",
+        "species": "Unknown",
+        "shu_min": 85000.0,
+        "shu_max": 115000.0,
+        "shu_avg": 100000.0,
+        "shu_display": "85,000 \u2013 115,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/tabiche-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -97.1924,
+          39.1704
+        ]
+      },
+      "properties": {
+        "name": "Tangerine Dream Chili Pepper",
+        "full_title": "Tangerine Dream Chili Pepper",
+        "origin": "United States",
+        "species": "Unknown",
+        "shu_min": 0,
+        "shu_max": 100,
+        "shu_avg": 50,
+        "shu_display": "0 \u2013 100 SHU",
+        "estimated": true,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/tangerine-dream-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.6949,
+          14.7922
+        ]
+      },
+      "properties": {
+        "name": "Thai Pepper: Many Types and Heat Levels",
+        "full_title": "Thai Pepper: Many Types and Heat Levels",
+        "origin": "Thailand",
+        "species": "Capsicum Annuum",
+        "shu_min": 0.0,
+        "shu_max": 100000.0,
+        "shu_avg": 50000.0,
+        "shu_display": "0 \u2013 100,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/thai-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -105.2223,
+          34.132
+        ]
+      },
+      "properties": {
+        "name": "Tiburon Hybrid Chili Pepper",
+        "full_title": "Tiburon Hybrid Chili Pepper",
+        "origin": "New Mexico, United States",
+        "species": "Capsicum Annuum",
+        "shu_min": 1000.0,
+        "shu_max": 2000.0,
+        "shu_avg": 1500.0,
+        "shu_display": "1,000 \u2013 2,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/tiburon-hybrid/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          101.2719,
+          35.4867
+        ]
+      },
+      "properties": {
+        "name": "Tien Tsin Chili Peppers",
+        "full_title": "Tien Tsin Chili Peppers",
+        "origin": "China",
+        "species": "Unknown",
+        "shu_min": 50000.0,
+        "shu_max": 75000.0,
+        "shu_avg": 62500.0,
+        "shu_display": "50,000 \u2013 75,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/tien-tsin-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -80.4612,
+          33.5877
+        ]
+      },
+      "properties": {
+        "name": "Tiger Paw NR Chili Peppers",
+        "full_title": "Tiger Paw NR Chili Peppers",
+        "origin": "South Carolina, United States",
+        "species": "Unknown",
+        "shu_min": 265000.0,
+        "shu_max": 328000.0,
+        "shu_avg": 296500.0,
+        "shu_display": "265,000 \u2013 328,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/tiger-paw-nr-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -61.9732,
+          10.4686
+        ]
+      },
+      "properties": {
+        "name": "Trinidad Moruga Scorpion Pepper",
+        "full_title": "Trinidad Moruga Scorpion Pepper: All About It",
+        "origin": "Trinidad and Tobago",
+        "species": "Capsicum Chinense",
+        "shu_min": 2000000.0,
+        "shu_max": 2000000.0,
+        "shu_avg": 2000000.0,
+        "shu_display": "2,000,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/trinidad-moruga-scorpion-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -61.7623,
+          10.1632
+        ]
+      },
+      "properties": {
+        "name": "Trinidad Perfume Chili Peppers",
+        "full_title": "Trinidad Perfume Chili Peppers",
+        "origin": "Trinidad and Tobago",
+        "species": "Unknown",
+        "shu_min": 0.0,
+        "shu_max": 500.0,
+        "shu_avg": 250.0,
+        "shu_display": "0 \u2013 500 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/sweet-mild-chili-peppers/trinidad-perfume-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -61.2532,
+          10.0366
+        ]
+      },
+      "properties": {
+        "name": "Trinidad Scorpion Butch T Pepper",
+        "full_title": "Trinidad Scorpion Butch T Pepper",
+        "origin": "Trinidad and Tobago",
+        "species": "Capsicum Chinense",
+        "shu_min": 1400000.0,
+        "shu_max": 1400000.0,
+        "shu_avg": 1400000.0,
+        "shu_display": "1,400,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/trinidad-scorpion-butch-t-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -60.7441,
+          10.1632
+        ]
+      },
+      "properties": {
+        "name": "Trinidad Scorpion Pepper",
+        "full_title": "Trinidad Scorpion Pepper",
+        "origin": "Trinidad and Tobago",
+        "species": "Capsicum Chinense",
+        "shu_min": 300000.0,
+        "shu_max": 300000.0,
+        "shu_avg": 300000.0,
+        "shu_display": "300,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/superhot-chili-peppers/trinidad-scorpion-chili-peppers/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -52.2498,
+          -9.5889
+        ]
+      },
+      "properties": {
+        "name": "Tshololo Chili Pepper",
+        "full_title": "Tshololo Chili Pepper",
+        "origin": "Brazil",
+        "species": "Capsicum Chinense",
+        "shu_min": 80000.0,
+        "shu_max": 120000.0,
+        "shu_avg": 100000.0,
+        "shu_display": "80,000 \u2013 120,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/tshololo-chili-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -58.9748,
+          5.6238
+        ]
+      },
+      "properties": {
+        "name": "Wiri Wiri Pepper",
+        "full_title": "Wiri Wiri Pepper",
+        "origin": "Guyana",
+        "species": "Capsicum Frutescens",
+        "shu_min": 100000.0,
+        "shu_max": 350000.0,
+        "shu_avg": 225000.0,
+        "shu_display": "100,000 \u2013 350,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/hot-chili-pepper-types/wiri-wiri-pepper/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          138.2697,
+          36.0513
+        ]
+      },
+      "properties": {
+        "name": "Yatsafusa Chili Peppers",
+        "full_title": "Yatsafusa Chili Peppers",
+        "origin": "Japan",
+        "species": "Unknown",
+        "shu_min": 75000.0,
+        "shu_max": 75000.0,
+        "shu_avg": 75000.0,
+        "shu_display": "75,000 SHU",
+        "estimated": false,
+        "url": "https://www.chilipeppermadness.com/chili-pepper-types/medium-hot-chili-peppers/yatsafusa-chili-peppers/"
+      }
+    }
+  ]
+};
+</script>
+<script>
+  mapboxgl.accessToken = 'pk.eyJ1IjoicHJpbWF0ZWNvIiwiYSI6ImNscjkzdml1ZDAyNGkyaWxwcjZwM2t1cWMifQ.Gy4eRMcJNHtMBBBTQneJeg';
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/primateco/cmobfgfhv000w01shgyjs1m4i',
+    center: [10, 15],
+    zoom: 1.7,
+    projection: 'mercator'
+  });
+
+  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+
+  // ---- color / radius expressions, driven by shu_avg on a log scale ----
+  // log10(1)=0 .. log10(3,000,001)=~6.48
+  const colorExpr = [
+    'interpolate', ['linear'], ['ln', ['+', ['get', 'shu_avg'], 1]],
+    0,            '#f4c542',
+    Math.log(1000+1),   '#eea430',
+    Math.log(30000+1),  '#e8791a',
+    Math.log(150000+1), '#d94a1c',
+    Math.log(600000+1), '#b9241c',
+    Math.log(1500000+1),'#7a1210',
+    Math.log(3000000+1),'#3a0a08'
+  ];
+
+  const radiusExpr = [
+    'interpolate', ['linear'], ['ln', ['+', ['get', 'shu_avg'], 1]],
+    0, 4,
+    Math.log(1000+1), 5,
+    Math.log(30000+1), 7,
+    Math.log(300000+1), 9.5,
+    Math.log(3000000+1), 13
+  ];
+
+  map.on('load', () => {
+    map.addSource('chilis', { type: 'geojson', data: CHILI_DATA });
+
+    // soft glow layer beneath
+    map.addLayer({
+      id: 'chili-glow',
+      type: 'circle',
+      source: 'chilis',
+      paint: {
+        'circle-radius': ['*', radiusExpr, 2.6],
+        'circle-color': colorExpr,
+        'circle-opacity': 0.18,
+        'circle-blur': 1
+      }
+    });
+
+    map.addLayer({
+      id: 'chili-points',
+      type: 'circle',
+      source: 'chilis',
+      paint: {
+        'circle-radius': radiusExpr,
+        'circle-color': colorExpr,
+        'circle-stroke-width': 1.2,
+        'circle-stroke-color': 'rgba(18,12,10,0.9)',
+        'circle-opacity': 0.95
+      }
+    });
+
+    map.on('mouseenter', 'chili-points', () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseleave', 'chili-points', () => map.getCanvas().style.cursor = '');
+
+    map.on('click', 'chili-points', (e) => {
+      const f = e.features[0];
+      showDetail(f.properties);
+    });
+  });
+
+  // ---- detail panel ----
+  const detailPanel = document.getElementById('detail-panel');
+  const detailContent = document.getElementById('detail-content');
+  document.getElementById('detail-close').addEventListener('click', () => {
+    detailPanel.classList.remove('open');
+  });
+
+  function shuColor(avg){
+    const v = Math.log(avg + 1);
+    if (v < Math.log(1001)) return '#f4c542';
+    if (v < Math.log(30001)) return '#e8791a';
+    if (v < Math.log(150001)) return '#d94a1c';
+    if (v < Math.log(600001)) return '#b9241c';
+    if (v < Math.log(1500001)) return '#7a1210';
+    return '#3a0a08';
+  }
+
+  function showDetail(p){
+    const col = shuColor(p.shu_avg);
+    detailContent.innerHTML = `
+      <div id="detail-eyebrow">${p.species}</div>
+      <h3 id="detail-name">${p.name}</h3>
+      <div class="detail-row"><span class="detail-label">Origin</span><span class="detail-value">${p.origin}</span></div>
+      <div class="detail-row"><span class="detail-label">Heat range</span><span class="detail-value">${p.shu_display}</span></div>
+      <div id="shu-badge" style="background:${col}; color:${p.shu_avg > 150000 ? '#f2e9de' : '#181210'}">${Math.round(p.shu_avg).toLocaleString()} SHU avg</div>
+      <br/>
+      <a id="detail-link" href="${p.url}" target="_blank" rel="noopener">Read more on Chili Pepper Madness →</a>
+      ${p.estimated ? '<div id="detail-estimated">Heat level estimated from qualitative description — exact SHU not published.</div>' : ''}
+    `;
+    detailPanel.classList.add('open');
+  }
+
+  // ---- search / filter ----
+  const searchInput = document.getElementById('search');
+  const countShown = document.getElementById('count-shown');
+  const total = CHILI_DATA.features.length;
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!map.getLayer('chili-points')) return;
+    if (!q) {
+      map.setFilter('chili-points', null);
+      map.setFilter('chili-glow', null);
+      countShown.textContent = total;
+      return;
+    }
+    const filter = ['any',
+      ['in', q, ['downcase', ['get', 'name']]],
+      ['in', q, ['downcase', ['get', 'origin']]]
+    ];
+    map.setFilter('chili-points', filter);
+    map.setFilter('chili-glow', filter);
+    const shown = CHILI_DATA.features.filter(f =>
+      f.properties.name.toLowerCase().includes(q) || f.properties.origin.toLowerCase().includes(q)
+    ).length;
+    countShown.textContent = shown;
+  });
+</script>
+</body>
+</html>
