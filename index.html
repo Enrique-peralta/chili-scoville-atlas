@@ -187,7 +187,7 @@
   <div id="search-wrap">
     <input id="search" type="text" placeholder="Search a pepper or country…" autocomplete="off" />
   </div>
-  <div id="count"><span>Showing <b id="count-shown">166</b> of 166 peppers</span></div>
+  <div id="count"><span>Showing <b id="count-shown">…</b> of <b id="count-total">…</b> peppers</span></div>
 </div>
 
 <div id="legend-panel" class="panel">
@@ -205,7 +205,9 @@
 </div>
 
 <script>
-const CHILI_DATA = {
+// Fallback snapshot only — used if the live Google Sheet can't be reached.
+// The live map fetches fresh data from Google Sheets on every load (see below).
+const FALLBACK_DATA = {
   "type": "FeatureCollection",
   "features": [
     {
@@ -3898,8 +3900,17 @@ const CHILI_DATA = {
     Math.log(3000000+1), 13
   ];
 
-  map.on('load', () => {
-    map.addSource('chilis', { type: 'geojson', data: CHILI_DATA });
+  let CHILI_DATA = FALLBACK_DATA;
+  let total = CHILI_DATA.features.length;
+
+  const mapLoaded = new Promise(resolve => map.on('load', resolve));
+
+  function initLayers(geojson) {
+    if (map.getSource('chilis')) {
+      map.getSource('chilis').setData(geojson);
+      return;
+    }
+    map.addSource('chilis', { type: 'geojson', data: geojson });
 
     // soft glow layer beneath
     map.addLayer({
@@ -3910,7 +3921,8 @@ const CHILI_DATA = {
         'circle-radius': ['*', radiusExpr, 2.6],
         'circle-color': colorExpr,
         'circle-opacity': 0.18,
-        'circle-blur': 1
+        'circle-blur': 1,
+        'circle-emissive-strength': 1
       }
     });
 
@@ -3923,7 +3935,8 @@ const CHILI_DATA = {
         'circle-color': colorExpr,
         'circle-stroke-width': 1.2,
         'circle-stroke-color': 'rgba(18,12,10,0.9)',
-        'circle-opacity': 0.95
+        'circle-opacity': 0.95,
+        'circle-emissive-strength': 1
       }
     });
 
@@ -3934,7 +3947,7 @@ const CHILI_DATA = {
       const f = e.features[0];
       showDetail(f.properties);
     });
-  });
+  }
 
   // ---- detail panel ----
   const detailPanel = document.getElementById('detail-panel');
@@ -3971,7 +3984,7 @@ const CHILI_DATA = {
   // ---- search / filter ----
   const searchInput = document.getElementById('search');
   const countShown = document.getElementById('count-shown');
-  const total = CHILI_DATA.features.length;
+  const countTotal = document.getElementById('count-total');
 
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim().toLowerCase();
@@ -3992,6 +4005,108 @@ const CHILI_DATA = {
       f.properties.name.toLowerCase().includes(q) || f.properties.origin.toLowerCase().includes(q)
     ).length;
     countShown.textContent = shown;
+  });
+
+  // ---- live data from Google Sheets ----
+  // The sheet must stay shared as "Anyone with the link" (Viewer) for this to work.
+  // Edit rows in the sheet -> reload the page -> the map reflects the change. No redeploy needed.
+  const SHEET_ID = '1t8B3z7l_ZmSOa2-pR1JQFu_JaxYNJZHe_Ca6cYmOJn4';
+  const SHEET_NAME = 'chili_database';
+  const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+  // Minimal RFC4180-ish CSV parser: handles quoted fields, embedded commas, doubled quotes.
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], field = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else { inQuotes = false; }
+        } else {
+          field += c;
+        }
+      } else if (c === '"') {
+        inQuotes = true;
+      } else if (c === ',') {
+        row.push(field); field = '';
+      } else if (c === '\n') {
+        row.push(field); rows.push(row); row = []; field = '';
+      } else if (c === '\r') {
+        // ignore, \n handles the row break
+      } else {
+        field += c;
+      }
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    if (!rows.length) return [];
+    const headers = rows[0].map(h => h.trim().toLowerCase());
+    return rows.slice(1)
+      .filter(r => r.some(cell => cell.trim() !== ''))
+      .map(r => {
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = (r[idx] ?? '').trim(); });
+        return obj;
+      });
+  }
+
+  // Maps sheet rows (by column name, order-independent) into the GeoJSON the map expects.
+  function rowsToGeoJSON(rows) {
+    const features = rows.map(row => {
+      const lon = parseFloat(row.longitude);
+      const lat = parseFloat(row.latitude);
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [lon, lat] },
+        properties: {
+          name: row.name,
+          origin: row.origin,
+          species: row.species || 'Unknown',
+          shu_min: parseFloat(row.shu_min),
+          shu_max: parseFloat(row.shu_max),
+          shu_avg: parseFloat(row.shu_avg),
+          shu_display: row.shu_display,
+          estimated: /^true$/i.test(row.estimated),
+          url: row.source_url || row.url || ''
+        }
+      };
+    }).filter(f =>
+      f.properties.name &&
+      Number.isFinite(f.geometry.coordinates[0]) &&
+      Number.isFinite(f.geometry.coordinates[1]) &&
+      Number.isFinite(f.properties.shu_avg)
+    );
+    return { type: 'FeatureCollection', features };
+  }
+
+  async function loadChiliData() {
+    try {
+      const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      const rows = parseCSV(text);
+      const geojson = rowsToGeoJSON(rows);
+      if (!geojson.features.length) throw new Error('No valid rows parsed from sheet');
+      return { geojson, isFallback: false };
+    } catch (err) {
+      console.warn('Live sheet fetch failed, showing bundled fallback snapshot instead:', err);
+      return { geojson: FALLBACK_DATA, isFallback: true };
+    }
+  }
+
+  Promise.all([mapLoaded, loadChiliData()]).then(([_, result]) => {
+    CHILI_DATA = result.geojson;
+    total = CHILI_DATA.features.length;
+    initLayers(CHILI_DATA);
+    countShown.textContent = total;
+    countTotal.textContent = total;
+    if (result.isFallback) {
+      const note = document.createElement('div');
+      note.style.cssText = 'margin-top:10px;font-size:11px;color:#e8791a;line-height:1.4;';
+      note.textContent = 'Showing a saved snapshot — the live Google Sheet couldn\'t be reached just now.';
+      document.getElementById('title-panel').appendChild(note);
+    }
   });
 </script>
 </body>
