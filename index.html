@@ -7,115 +7,144 @@
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet" />
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#120c0a;
-    --panel:#1c1512;
-    --panel-border:#3a2a22;
-    --ember-yellow:#f4c542;
-    --ember-orange:#e8791a;
-    --ember-red:#b9241c;
-    --ember-deep:#4a0a08;
-    --text:#f2e9de;
-    --text-dim:#b8a89a;
+    --yolk:#f5cc1b;
+    --yolk-dim:#e0ba14;
+    --ink:#141311;
+    --chili:#e1341f;
+    --chili-dark:#a4230f;
+    --paper:#fff6de;
+    --smoke:#7a715d;
     --mono:'Space Mono', monospace;
-    --display:'Fraunces', serif;
+    --display:'Anton', sans-serif;
     --sans:'Inter', sans-serif;
   }
   * { box-sizing: border-box; }
-  html, body { margin:0; padding:0; height:100%; background:var(--bg); font-family: var(--sans); color: var(--text); }
+  html, body { margin:0; padding:0; height:100%; background:var(--yolk); font-family: var(--sans); color: var(--ink); }
+
+  #ticker-bar{
+    position:absolute; top:0; left:0; right:0; height:34px; z-index:6;
+    background: var(--ink); overflow:hidden; white-space:nowrap;
+    border-bottom: 3px solid var(--chili);
+  }
+  #ticker-track{
+    display:inline-block; padding-left:100%;
+    animation: ticker-scroll 38s linear infinite;
+    font-family: var(--mono); font-weight:700; font-size: 12px; letter-spacing: 0.04em;
+    color: var(--yolk); line-height:34px;
+  }
+  #ticker-track span{ margin-right: 48px; }
+  #ticker-track span::before{ content:"✺  "; color: var(--chili); }
+  @keyframes ticker-scroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce){ #ticker-track{ animation: none; } }
+
+  #map-frame{
+    position:absolute; top:50px; left:16px; right:16px; bottom:16px;
+    border: 3px solid var(--ink);
+    box-shadow: 8px 8px 0 var(--ink);
+    overflow:hidden; background:#0a0806;
+  }
   #map { position:absolute; inset:0; }
 
-  /* subtle vignette so UI panels read clearly over any map style */
+  /* subtle vignette so UI panels read clearly over the map */
   #vignette{
     position:absolute; inset:0; pointer-events:none; z-index:1;
-    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(10,6,5,0.55) 100%);
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(10,6,5,0.5) 100%);
   }
 
   .panel{
     position:absolute; z-index:5;
-    background: rgba(24,17,14,0.88);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--panel-border);
-    border-radius: 14px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+    background: var(--ink);
+    border: 3px solid var(--yolk);
+    box-shadow: 6px 6px 0 rgba(0,0,0,0.55);
+    border-radius: 0;
   }
 
   #title-panel{
     top: 20px; left: 20px; width: 320px;
     padding: 20px 22px 18px;
+    background: var(--yolk);
+    border: 3px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--ink);
   }
   #title-panel h1{
     font-family: var(--display);
-    font-weight: 600;
-    font-size: 26px;
-    line-height: 1.08;
-    margin: 0 0 4px;
-    letter-spacing: -0.01em;
-    background: linear-gradient(120deg, var(--ember-yellow), var(--ember-red) 70%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    font-weight: 400;
+    text-transform: uppercase;
+    font-size: 34px;
+    line-height: 0.92;
+    margin: 0 0 10px;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  #title-panel h1 em{
+    font-style: normal;
+    color: var(--paper);
+    -webkit-text-stroke: 1.5px var(--ink);
+    text-shadow: 3px 3px 0 var(--chili);
   }
   #title-panel p.sub{
     margin: 0 0 14px;
     font-size: 13px;
-    color: var(--text-dim);
+    color: var(--ink);
     line-height: 1.5;
+    font-weight: 500;
   }
   #search-wrap{ position:relative; }
   #search{
     width:100%;
-    background: #0f0a08;
-    border: 1px solid var(--panel-border);
-    color: var(--text);
+    background: var(--ink);
+    border: 2px solid var(--ink);
+    color: var(--yolk);
     font-family: var(--sans);
+    font-weight: 600;
     font-size: 13.5px;
-    padding: 9px 12px;
-    border-radius: 8px;
+    padding: 10px 12px;
+    border-radius: 0;
     outline: none;
   }
-  #search::placeholder{ color: #7a6a5c; }
-  #search:focus{ border-color: var(--ember-orange); }
+  #search::placeholder{ color: var(--smoke); }
+  #search:focus{ border-color: var(--chili); box-shadow: 0 0 0 2px var(--chili); }
   #count{
-    margin-top: 10px;
+    margin-top: 12px;
     font-family: var(--mono);
+    font-weight: 700;
     font-size: 11px;
-    color: var(--text-dim);
+    color: var(--ink);
     display:flex; justify-content:space-between;
   }
-  #count b{ color: var(--ember-yellow); font-weight:700; }
+  #count b{ color: var(--chili); font-weight:700; }
 
   #legend-panel{
     bottom: 24px; left: 20px; width: 270px;
     padding: 16px 20px 18px;
   }
   #legend-panel h2{
-    font-family: var(--mono);
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
-    margin: 0 0 12px;
+    font-family: var(--display);
     font-weight: 400;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--yolk);
+    margin: 0 0 12px;
   }
   #gradient-bar{
-    height: 10px;
-    border-radius: 6px;
+    height: 12px;
+    border: 2px solid var(--yolk);
     background: linear-gradient(90deg,
       #f4c542 0%, #eea430 18%, #e8791a 34%, #d94a1c 50%, #b9241c 68%, #7a1210 84%, #3a0a08 100%);
     margin-bottom: 6px;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
   }
   #legend-ticks{
     display:flex; justify-content:space-between;
-    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    font-family: var(--mono); font-weight:700; font-size: 10px; color: var(--paper);
   }
   #legend-note{
-    margin-top: 12px; font-size: 11px; color: var(--text-dim); line-height:1.5;
+    margin-top: 12px; font-size: 11px; color: var(--paper); opacity:0.8; line-height:1.5;
   }
-  .legend-swatch{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .legend-swatch{ display:inline-block; width:8px; height:8px; margin-right:6px; vertical-align:middle; }
 
   #detail-panel{
     top: 20px; right: 20px; width: 340px;
@@ -126,50 +155,57 @@
   }
   #detail-panel.open{ display:block; }
   #detail-close{
-    position:absolute; top:12px; right:14px;
-    background:none; border:none; color: var(--text-dim);
-    font-size:20px; cursor:pointer; line-height:1;
+    position:absolute; top:10px; right:12px;
+    background: var(--yolk); border: 2px solid var(--yolk); color: var(--ink);
+    width: 26px; height: 26px;
+    font-size:18px; font-weight:700; cursor:pointer; line-height:1;
     font-family: var(--sans);
   }
-  #detail-close:hover{ color: var(--text); }
-  #detail-content{ padding: 22px 22px 24px; }
+  #detail-close:hover{ background: var(--chili); border-color: var(--chili); color: var(--paper); }
+  #detail-content{ padding: 24px 22px 24px; }
   #detail-eyebrow{
-    font-family: var(--mono); font-size: 10.5px; color: var(--ember-orange);
-    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;
+    font-family: var(--mono); font-weight:700; font-size: 10.5px; color: var(--chili);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
   }
   #detail-name{
-    font-family: var(--display); font-weight:600; font-size: 24px; line-height:1.15;
-    margin: 0 0 14px; color: var(--text);
+    font-family: var(--display); font-weight:400; text-transform:uppercase; font-size: 27px; line-height:1.02;
+    margin: 0 0 16px; color: var(--paper);
   }
   .detail-row{
     display:flex; justify-content:space-between; align-items:baseline;
-    padding: 9px 0; border-top: 1px solid var(--panel-border);
+    padding: 10px 0; border-top: 1px dashed rgba(255,246,222,0.25);
     font-size: 13.5px;
   }
   .detail-row:first-of-type{ border-top:none; padding-top:0; }
-  .detail-label{ color: var(--text-dim); font-size: 12px; }
-  .detail-value{ text-align:right; color: var(--text); font-weight:500; }
+  .detail-label{ color: var(--smoke); font-size: 12px; }
+  .detail-value{ text-align:right; color: var(--paper); font-weight:600; }
   #shu-badge{
-    display:inline-block; margin-top:14px; padding: 8px 14px;
-    border-radius: 8px; font-family: var(--mono); font-size: 14px; font-weight:700;
-    color:#12100e;
+    display:inline-flex; align-items:center; justify-content:center; text-align:center;
+    width: 116px; height:116px; margin-top:18px;
+    border: 3px solid var(--ink); border-radius: 50%;
+    box-shadow: 4px 4px 0 rgba(255,246,222,0.15);
+    transform: rotate(-6deg);
+    font-family: var(--mono); font-size: 13px; font-weight:700; line-height:1.25;
+    padding: 6px;
   }
   #detail-link{
-    display:inline-block; margin-top:16px; font-size:12.5px;
-    color: var(--ember-yellow); text-decoration:none; border-bottom: 1px solid rgba(244,197,66,0.4);
-    padding-bottom: 1px;
+    display:inline-block; margin-top:18px; font-size:12.5px; font-weight:700;
+    color: var(--ink); background: var(--yolk); text-decoration:none;
+    padding: 8px 14px; border: 2px solid var(--yolk);
+    text-transform: uppercase; letter-spacing: 0.03em;
   }
-  #detail-link:hover{ border-bottom-color: var(--ember-yellow); }
+  #detail-link:hover{ background: var(--chili); border-color: var(--chili); color: var(--paper); }
   #detail-estimated{
-    margin-top: 12px; font-size: 11px; color: var(--text-dim); font-style: italic;
+    margin-top: 14px; font-size: 11px; color: var(--smoke); font-style: italic;
   }
 
   ::-webkit-scrollbar{ width:6px; }
-  ::-webkit-scrollbar-thumb{ background: var(--panel-border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb{ background: var(--yolk); }
 
   .mapboxgl-ctrl-attrib{ font-size: 10px; }
 
   @media (max-width: 720px){
+    #map-frame{ top: 44px; }
     #title-panel{ width: calc(100% - 40px); }
     #legend-panel{ width: calc(100% - 40px); }
     #detail-panel{ width: calc(100% - 40px); left: 20px; right: 20px; top: auto; bottom: 24px; max-height: 45vh; }
@@ -178,11 +214,26 @@
 </head>
 <body>
 
-<div id="map"></div>
-<div id="vignette"></div>
+<div id="ticker-bar">
+  <div id="ticker-track">
+    <span>166 CHILI PEPPERS MAPPED BY ORIGIN</span>
+    <span>SCOVILLE SCALE FROM 0 TO 3,000,000+ SHU</span>
+    <span id="ticker-hottest">LOADING HOTTEST PEPPER…</span>
+    <span id="ticker-mildest">LOADING MILDEST PEPPER…</span>
+    <span>DATA FROM CHILI PEPPER MADNESS</span>
+    <span>166 CHILI PEPPERS MAPPED BY ORIGIN</span>
+    <span>SCOVILLE SCALE FROM 0 TO 3,000,000+ SHU</span>
+    <span>DATA FROM CHILI PEPPER MADNESS</span>
+  </div>
+</div>
+
+<div id="map-frame">
+  <div id="map"></div>
+  <div id="vignette"></div>
+</div>
 
 <div id="title-panel" class="panel">
-  <h1>The Scoville Atlas</h1>
+  <h1>Scoville <em>Atlas</em></h1>
   <p class="sub">Where the world's chili peppers come from, mapped by heat — pale ember for mild, deep blood-red for the reapers.</p>
   <div id="search-wrap">
     <input id="search" type="text" placeholder="Search a pepper or country…" autocomplete="off" />
@@ -203,6 +254,7 @@
   <button id="detail-close">&times;</button>
   <div id="detail-content"></div>
 </div>
+
 
 <script>
 // Fallback snapshot only — used if the live Google Sheet can't be reached.
@@ -4103,9 +4155,19 @@ const FALLBACK_DATA = {
     countTotal.textContent = total;
     if (result.isFallback) {
       const note = document.createElement('div');
-      note.style.cssText = 'margin-top:10px;font-size:11px;color:#e8791a;line-height:1.4;';
+      note.style.cssText = 'margin-top:10px;font-size:11px;color:var(--chili);line-height:1.4;font-weight:600;';
       note.textContent = 'Showing a saved snapshot — the live Google Sheet couldn\'t be reached just now.';
       document.getElementById('title-panel').appendChild(note);
+    }
+
+    const feats = CHILI_DATA.features;
+    if (feats.length) {
+      const hottest = feats.reduce((a, b) => b.properties.shu_avg > a.properties.shu_avg ? b : a);
+      const mildest = feats.reduce((a, b) => b.properties.shu_avg < a.properties.shu_avg ? b : a);
+      const hottestEl = document.getElementById('ticker-hottest');
+      const mildestEl = document.getElementById('ticker-mildest');
+      if (hottestEl) hottestEl.textContent = `HOTTEST: ${hottest.properties.name.toUpperCase()} — ${Math.round(hottest.properties.shu_avg).toLocaleString()} SHU`;
+      if (mildestEl) mildestEl.textContent = `MILDEST: ${mildest.properties.name.toUpperCase()} — ${Math.round(mildest.properties.shu_avg).toLocaleString()} SHU`;
     }
   });
 </script>
