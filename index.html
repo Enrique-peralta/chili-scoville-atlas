@@ -42,9 +42,8 @@
   @media (prefers-reduced-motion: reduce){ #ticker-track{ animation: none; } }
 
   #map-frame{
-    position:absolute; top:50px; left:16px; right:24px; bottom:24px;
+    position:absolute; top:50px; left:16px; right:16px; bottom:16px;
     border: 3px solid var(--ink);
-    box-shadow: 8px 8px 0.5px var(--ink);
     overflow:hidden; background:#0a0806;
   }
   #map { position:absolute; inset:0; }
@@ -129,7 +128,7 @@
   #count b{ color: var(--chili); font-weight:700; }
 
   #legend-panel{
-    bottom: 24px; left: 20px; width: 270px;
+    bottom: 24px; right: 20px; width: 270px;
     padding: 16px 20px 18px;
   }
   #legend-panel h2{
@@ -234,8 +233,9 @@
 
   @media (max-width: 720px){
     #map-frame{ top: 44px; }
-    #title-panel{ width: calc(100% - 40px); }
-    #legend-panel{ width: calc(100% - 40px); }
+    #title-panel{ width: min(78%, 300px); }
+    #title-panel h1{ font-size: 27px; }
+    #legend-panel{ width: min(58%, 230px); left: 20px; right: auto; }
 
     #title-panel p.sub{ display: none; }
     #count{ display: none; }
@@ -280,11 +280,15 @@
     #detail-panel.open{ transform: translateY(0); }
 
     #detail-handle{
-      display: block;
-      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; justify-content: center;
+      position: absolute; top: 0; left: 0; right: 0; height: 30px;
+      touch-action: none;
+      z-index: 4;
+    }
+    #detail-handle::after{
+      content: '';
       width: 40px; height: 4px; border-radius: 2px;
       background: rgba(255,255,255,0.8);
-      z-index: 3;
     }
     #detail-close{ top: 8px; right: 10px; }
     #detail-image-wrap{ height: 150px; }
@@ -4015,7 +4019,7 @@ const FALLBACK_DATA = {
     projection: 'mercator'
   });
 
-  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
 
   // ---- color / radius expressions, driven by shu_avg on a log scale ----
   // log10(1)=0 .. log10(3,000,001)=~6.48
@@ -4118,18 +4122,41 @@ const FALLBACK_DATA = {
   document.getElementById('detail-close').addEventListener('click', closeDetail);
   detailBackdrop.addEventListener('click', closeDetail);
 
-  // swipe-down-to-dismiss on the handle (mobile bottom sheet only — harmless no-op on desktop)
-  let touchStartY = null;
+  // draggable bottom sheet (mobile only — harmless no-op on desktop, handle is display:none there)
   const detailHandle = document.getElementById('detail-handle');
+  let dragStartY = null;
+  let dragDistance = 0;
+  let dragging = false;
+  const CLOSE_THRESHOLD = 100; // px dragged down before we treat it as "let go to close"
+
   detailHandle.addEventListener('touchstart', (e) => {
-    touchStartY = e.touches[0].clientY;
+    dragging = true;
+    dragStartY = e.touches[0].clientY;
+    dragDistance = 0;
+    detailPanel.style.transition = 'none'; // follow the finger with no easing lag
   }, { passive: true });
-  detailHandle.addEventListener('touchend', (e) => {
-    if (touchStartY === null) return;
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    if (dy > 60) closeDetail();
-    touchStartY = null;
+
+  detailHandle.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const dy = e.touches[0].clientY - dragStartY;
+    if (dy > 0) { // only allow dragging downward
+      dragDistance = dy;
+      detailPanel.style.transform = `translateY(${dy}px)`;
+    }
   }, { passive: true });
+
+  function endDrag(){
+    if (!dragging) return;
+    dragging = false;
+    const shouldClose = dragDistance > CLOSE_THRESHOLD;
+    detailPanel.style.transition = ''; // restore the CSS slide transition
+    void detailPanel.offsetHeight; // force a reflow so the transition re-applies before the next change
+    detailPanel.style.transform = ''; // hand control back to the .open class
+    if (shouldClose) closeDetail();
+    dragDistance = 0;
+  }
+  detailHandle.addEventListener('touchend', endDrag, { passive: true });
+  detailHandle.addEventListener('touchcancel', endDrag, { passive: true });
 
   function shuColor(avg){
     const v = Math.log(avg + 1);
