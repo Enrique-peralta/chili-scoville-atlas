@@ -8,6 +8,7 @@
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=info" />
 <style>
   :root{
     --yolk:#f5cc1b;
@@ -41,9 +42,9 @@
   @media (prefers-reduced-motion: reduce){ #ticker-track{ animation: none; } }
 
   #map-frame{
-    position:absolute; top:50px; left:16px; right:16px; bottom:16px;
+    position:absolute; top:50px; left:16px; right:24px; bottom:24px;
     border: 3px solid var(--ink);
-    box-shadow: 8px 8px 0 var(--ink);
+    box-shadow: 8px 8px 0.5px var(--ink);
     overflow:hidden; background:#0a0806;
   }
   #map { position:absolute; inset:0; }
@@ -58,7 +59,7 @@
     position:absolute; z-index:5;
     background: var(--ink);
     border: 3px solid var(--yolk);
-    box-shadow: 6px 6px 0 rgba(0,0,0,0.55);
+    box-shadow: 6px 6px 0.5px var(--ink);
     border-radius: 0;
   }
 
@@ -67,8 +68,18 @@
     padding: 20px 22px 18px;
     background: var(--yolk);
     border: 3px solid var(--ink);
-    box-shadow: 6px 6px 0 var(--ink);
+    box-shadow: 6px 6px 0.5px var(--ink);
   }
+  #title-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .material-symbols-sharp{
+    font-family: 'Material Symbols Sharp';
+    font-weight: normal; font-style: normal;
+    font-size: 18px; line-height: 1; letter-spacing: normal; text-transform: none;
+    display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr;
+    -webkit-font-smoothing: antialiased;
+  }
+  #info-btn{ display:none; } /* desktop keeps the full description paragraph instead */
+  #info-tooltip{ display:none; }
   #title-panel h1{
     font-family: var(--display);
     font-weight: 400;
@@ -154,6 +165,13 @@
     display: none;
   }
   #detail-panel.open{ display:block; }
+  #detail-handle{ display:none; }
+  #detail-backdrop{
+    position: fixed; inset: 0; z-index: 8;
+    background: rgba(10,8,6,0.6);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
   #detail-close{
     position:absolute; top:10px; right:12px;
     background: var(--yolk); border: 2px solid var(--yolk); color: var(--ink);
@@ -218,7 +236,58 @@
     #map-frame{ top: 44px; }
     #title-panel{ width: calc(100% - 40px); }
     #legend-panel{ width: calc(100% - 40px); }
-    #detail-panel{ width: calc(100% - 40px); left: 20px; right: 20px; top: auto; bottom: 24px; max-height: 45vh; }
+
+    #title-panel p.sub{ display: none; }
+    #count{ display: none; }
+    #legend-note{ display: none; }
+
+    #title-row{ position: relative; }
+    #info-btn{
+      display: inline-flex; align-items:center; justify-content:center;
+      width: 28px; height: 28px; flex-shrink: 0;
+      background: none; color: var(--ink);
+      border: none;
+      cursor: pointer; padding: 0;
+    }
+    #info-btn:active{ color: var(--chili); }
+    #info-tooltip{
+      display: none;
+      position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+      background: var(--ink); color: var(--paper);
+      border: 2px solid var(--ink);
+      padding: 12px 14px;
+      font-size: 12.5px; line-height: 1.5; font-weight: 500;
+      z-index: 20;
+    }
+    #info-tooltip.open{ display: block; }
+
+    #detail-backdrop.open{ opacity: 1; pointer-events: auto; }
+
+    #detail-panel{
+      display: block; /* always mounted so the transform can animate */
+      position: fixed;
+      left: 0; right: 0; bottom: 0; top: auto;
+      width: 100%;
+      max-height: 78vh;
+      border-left: none; border-right: none; border-bottom: none; border-top: none;
+      border-radius: 12px 12px 0 0;
+      overflow: hidden auto; /* clip children to the rounded top corners */
+      box-shadow: 0 -8px 0 rgba(0,0,0,0.35);
+      z-index: 9;
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    #detail-panel.open{ transform: translateY(0); }
+
+    #detail-handle{
+      display: block;
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      width: 40px; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.8);
+      z-index: 3;
+    }
+    #detail-close{ top: 8px; right: 10px; }
+    #detail-image-wrap{ height: 150px; }
   }
 </style>
 </head>
@@ -243,7 +312,13 @@
 </div>
 
 <div id="title-panel" class="panel">
-  <h1>Scoville <em>Atlas</em></h1>
+  <div id="title-row">
+    <h1>Scoville <em>Atlas</em></h1>
+    <button id="info-btn" aria-label="About this map">
+      <span class="material-symbols-sharp">info</span>
+    </button>
+    <div id="info-tooltip">Where the world's chili peppers come from, mapped by heat — pale ember for mild, deep blood-red for the reapers.</div>
+  </div>
   <p class="sub">Where the world's chili peppers come from, mapped by heat — pale ember for mild, deep blood-red for the reapers.</p>
   <div id="search-wrap">
     <input id="search" type="text" placeholder="Search a pepper or country…" autocomplete="off" />
@@ -260,7 +335,9 @@
   <div id="legend-note">Dot size also scales with heat. Click any dot for details. Data enriched from Chili Pepper Madness.</div>
 </div>
 
+<div id="detail-backdrop"></div>
 <div id="detail-panel" class="panel">
+  <div id="detail-handle"></div>
   <button id="detail-close">&times;</button>
   <div id="detail-content"></div>
 </div>
@@ -4014,12 +4091,45 @@ const FALLBACK_DATA = {
   // ---- pepper photos (scraped from each Chili Pepper Madness article's og:image) ----
   const IMAGE_MAP = {"7-Pot Barrackapore Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2015/10/7-Pot-Barrackapore2.jpg", "7-Pot Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/7-Pot-Peppers.jpg", "7 Pot Douglah Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2017/06/7-Pot-Douglah-Pepper.jpg", "7 Pot Primo: Superhot Pepper Cross": "https://www.chilipeppermadness.com/wp-content/uploads/2019/10/7-Pot-Primo.jpg", "African Bird’s Eye / African Devil": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Birds-Eye-Peppers.jpg", "Aji Amarillo - the Sunny Yellow Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/11/Aji-Amarillo-Chili-Peppers1.jpg", "Aji Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/11/Aji-Amarillo-Chili-Peppers1.jpg", "Aji Cito Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/07/Aji-Cito-Chili-Pepper1.jpg", "Aji Cristal Peppers - Info, Seeds and More": "https://www.chilipeppermadness.com/wp-content/uploads/2018/11/Aji-Cristal-Chili-Peppers1.jpg", "Aji Dulce: Mild Caribbean Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/11/Aji-Dulce-Chili-Peppers1.jpg", "Aji Fantasy Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2015/09/Aji-Fantasy-Chili-Peppers2.jpg", "Aji Habanero Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/07/Aji-Habanero-Chili-Pepper1.jpg", "Aji Limo Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/11/Aji-Cristal-Chili-Peppers1.jpg", "Aji Panca Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Aji-Panca-Peppers-Dried.jpg", "Aji Pineapple Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/2cf20e200ca2c770a044a65b100b0636.jpg", "Aji Sivri Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/08/Aci-Sivri-Cayenne-Pepper2.jpg", "Albino Sweet Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/08/Albino-Chili-Pepper1.jpg", "Aleppo Pepper: A Syrian Chili": "https://www.chilipeppermadness.com/wp-content/uploads/2019/06/Aleppo-Peppers.jpg", "Anaheim Pepper: A Popular Mild California Chili": "https://www.chilipeppermadness.com/wp-content/uploads/2019/05/Anaheim-Peppers.jpg", "Ancho Peppers: Dried Poblanos": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Ancho-Chili-Sauce-Recipe3.jpg", "Ancho Ranchero Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/05/Ancho-Ranchero-Peppers2.jpg", "Apollo Pepper (A Superhot Chili Pepper)": "https://www.chilipeppermadness.com/wp-content/uploads/2022/06/Apollo-Hot-Sauce.jpg", "Bahamian Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Banana Peppers: How Hot They Are, Taste, and Uses": "https://www.chilipeppermadness.com/wp-content/uploads/2019/08/Banana-Peppers2.jpg", "Barker's Hot Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/02/Barkers-Hot-Chili-Peppers1.jpg", "Ghost Pepper (Bhut Jolokia) - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2018/10/Ghost-Peppers1.jpg", "Bird's Eye Chili Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Birds-Eye-Peppers2.jpg", "Bishop's Crown Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2019/08/Bishops-Crown-Peppers.jpg", "Bolivian Rainbow Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Bolivian-Rainbow-Peppers.jpg", "Brain Strain Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/07/Brain-Strain-Chili-Pepper1.jpg", "Calabrian Chili: Spicy Italian Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2020/09/Calabrian-Peppers-SQ.jpg", "Capsicum": "https://www.chilipeppermadness.com/wp-content/uploads/2025/03/What-Are-Capsicums.jpg", "Caribbean Red Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Carribean-Red-Peppers.jpg", "Carmen Italian Sweet Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2014/01/Corno-di-Toro-Chili-Peppers-RED.jpg", "Carolina Cayenne Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Carolina-Cayenne.jpg", "Carolina Reaper: Hottest Pepper in the World - All About It": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Carolina-Reaper-Pepper.jpg", "Cascabel Pepper (Chile Cascabel)": "https://www.chilipeppermadness.com/wp-content/uploads/2025/10/Cascabel-Peppers2.jpg", "Cascabella Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2021/11/Cascabella-Peppers1.jpg", "Cayenne Buist's Yellow Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/139702ff92e93f29d84ebf976a5dfd8f.jpg", "Cayenne Pepper: Heat Level, Flavor, Uses, Substitutes": "https://www.chilipeppermadness.com/wp-content/uploads/2025/10/Cayenne-Chili-Peppers1.jpg", "Cayenne Golden Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/07/Cayenne-Golden-Chili-Pepper1.jpg", "Charleston Hot Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Cherry Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2025/10/Cherry-Peppers3.jpg", "Chilaca Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2019/08/Chilaca-Peppers.jpg", "Chile de Arbol Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/12/Chile-de-Arbol-Peppers-Fresh.jpg", "Chilhuacle Amarillo Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/10/Chilhuacle-Amarillo-Chili-Pepper1.jpg", "Pequin Peppers - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Pequin-Peppers.jpg", "Chiltepin Peppers - Wild, Tiny U.S. Native Hot Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Chiltepin-Peppers.jpg", "Chimayo Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Chimayo-Pepper.jpg", "Chipotle Pepper: Smoked, Dried Jalapeno": "https://www.chilipeppermadness.com/wp-content/uploads/2019/08/Chipotle-Peppers.jpg", "Chocolate 7-Pot Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Chocolate-7-Pot-Peppers.jpg", "Chocolate Bhutlah": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Chocolate-7-Pot-Peppers.jpg", "Chocolate Habanero Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Chocolate-Habanero-Peppers.jpg", "Corno di Toro Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/12/Corno-di-Toro-Orange-Chili-Peppers1.jpg", "Corno di Toro Giallo Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/10dc0c0d83cf5ec5b13a99f94232defb.jpg", "Coronado Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Cowhorn Chili Peppers: Good Heat, Big Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/12/Cowhorn-Chili-Peppers1.jpg", "Cubanelle Pepper: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2024/02/Cubanelle-Peppers1.jpg", "Dagger Pod Chili Peppers - Cayenne Type": "https://www.chilipeppermadness.com/wp-content/uploads/2018/08/Dagger-Pod-Chili-Peppers1-Cayenne-Type.jpg", "Datil Pepper: Fiery Chili from St. Augustine": "https://www.chilipeppermadness.com/wp-content/uploads/2018/10/Datil-Peppers.jpg", "Devil's Tongue Pepper: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Devils-Tongue.jpg", "Diablo Grande Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Diablo-Grande-Peppers.jpg", "Dolmalik Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/e9f3064a37460e22935d3df9e26e53bb.jpg", "Dorset Naga: Superhot Pepper with Great Flavor": "https://www.chilipeppermadness.com/wp-content/uploads/2019/06/Dorset-Naga-Pepper.jpg", "Doux des Landes Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/806b6e1806566ad52df50ee6cecd90ef.jpg", "Dragon’s Breath Pepper (Superhot Chili)": "https://www.chilipeppermadness.com/wp-content/uploads/2017/05/Dragons-Breath-Chili-Peppers-HERO.jpg", "Dundicut Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Dundicut-Peppers.jpg", "Elephant's Ear Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/391d45802a606be64095bd7b66c67316.jpg", "Espanola Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Espanola-Pepper.jpg", "Espelette Peppers (a.k.a. Piment d'Espelette)": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Espelette-Chili-Peppers.jpg", "Fatalii Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Fatalii-Pepper.jpg", "Fish Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Fresno Pepper - Much Like a Jalapeno": "https://www.chilipeppermadness.com/wp-content/uploads/2021/09/Fresno-Chili-Peppers1.jpg", "Frontera Sweet Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/6111134b69b9dcb9c953bb227317f7fc.jpg", "Gatherer's Gold Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/2d535442c2c0b0669d8f5a051ed00bcc.jpg", "Giant Szegedi Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/5b98a51d844cf083418c7193dcee292b.jpg", "Gibralta / Spanish Naga Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Spanish-Naga-Peppers.jpg", "Guajillo Pepper: a Favorite Mexican Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2019/06/Guajillo-Peppers.jpg", "Guindilla Pepper - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2019/05/Guindilla-Peppers.jpg", "Guntur Sannam Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Guntur-Peppers.jpg", "Gypsy Pepper: A Sweet Hybrid Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/07/Gypsy-Hybrid-Chili-Peppers1.jpg", "Habanero Pepper: Profile, Uses, Heat": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Habanero-Peppers1.jpg", "Hatch Chile Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2024/10/Hatch-Chiles-Group6.jpg", "Hawaiian Sweet Hot Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/07/Hawaiian-Sweet-Hot-Chili-Peppers1.jpg", "Hidalgo Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Hidalgo-Peppers.jpg", "HJ8 Total Eclipse Space Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/fb5c27012bf7bd2b528a5fe03304bd91.jpg", "Hungarian Wax Peppers - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Hungarian-Wax-Chili-Peppers-HERO.jpg", "Infinity Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Infinity-Chili.jpg", "Italian Long Hot Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2020/10/Italian-Long-Hots-Peppers.jpg", "Jalapeño Pepper: Heat Level, Flavor, Uses, Substitutes": "https://www.chilipeppermadness.com/wp-content/uploads/2018/10/Jalapeno-Peppers1.jpg", "Jaloro Chili Peppers - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/7dff099a65b026895942a872c251a542.jpg", "Jamaican Hot Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Jamaican-Peppers.jpg", "Japones Pepper (Chile Japones)": "https://www.chilipeppermadness.com/wp-content/uploads/2020/10/Japones-Peppers1b.jpg", "Jwala Finger Hot Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Jwala-Fingers-Peppers.jpg", "Kashmiri Chili: Vibrant Red Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2020/10/Kashmiri-Chilies.jpg", "Komodo Dragon Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2017/06/Komodo-Dragon-Peppers.jpg", "Lemon Drop Pepper: All About It": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Aji-Lemon-Drop-Pepper.jpg", "Liebesapfel Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/0e17febd522cd9389b04ce5c00f25aec.jpg", "Madame Jeanette Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Madam-Jeanette-Peppers.jpg", "Malagueta Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Malagueta-Peppers.jpg", "Manzano Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2021/10/Manzano-Peppers1.jpg", "A Guide to Mexican Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2021/02/Guide-to-Mexican-Peppers.jpg", "Mirasol Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Mirasol-Peppers.jpg", "Morita Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Morita-Peppers-SQ.jpg", "Moshi Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/0243cbf1978673fe443d7558de6ab4f0.jpg", "Mulato Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Mulato-Pepper1.jpg", "Naga Morich: Superhot Pepper from Bangladesh": "https://www.chilipeppermadness.com/wp-content/uploads/2019/08/Naga-Morich-Pepper.jpg", "Naga Viper Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Naga-Viper-Peppers.jpg", "New Mex Big Jim Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/02/Big-Jiim-Chili-Peppers2.jpg", "New Mex XX Hot Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Sandia-Pepper.jpg", "New Mexico 6-4 Heritage Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2024/10/Hatch-Chiles-Group1.jpg", "New Mexico Scorpion Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "NuMex CaJohns Serrano - One HUGE Serrano": "https://www.chilipeppermadness.com/wp-content/uploads/2019/02/NuMex-CaJohns-Serrano-Chili-Pepper1.jpg", "NuMex Joe E. Parker Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2024/10/Hatch-Chiles-Group2.jpg", "NuMex R Naky Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2024/10/Hatch-Chiles-Group-3-Chilies1.jpg", "Orange Thai Pepper: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/051a22dde3b372e5c058fbc303756df4.jpg", "Paprika Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2025/10/Paprika-Peppers1.jpg", "Paprika Kalocsa": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/34570ba96cc3a4daee50221a47a4e2ec.jpg", "Pasilla Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2019/08/Pasilla-Peppers.jpg", "Pepper X (Hottest Pepper in the World) – Latest News and Information": "https://www.chilipeppermadness.com/wp-content/uploads/2018/02/Pepper-X-Hottest-Pepper-in-the-World-HERO.jpg", "Pepperoncini Peppers - All About Them - Scoville & More": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Pepperoncini-Peppers1.jpg", "Peter Peppers: The Oddly Shaped Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Peter-Pepper.jpg", "Peppadew® Peppers (Sweet Piquanté) – Everything You Need to Know": "https://www.chilipeppermadness.com/wp-content/uploads/2019/06/Peppadew-Peppers.jpg", "Piment de Bresse Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/963c54073e784a324883122381877c85.jpg", "Pimento Peppers - What Are They?": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Pimento-Peppers.jpg", "Padron Peppers (Pimiento de Padron)": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Pimiento-de-Padron-Peppers.jpg", "Piquillo Peppers - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Piquillo-Peppers2.jpg", "Poblano Peppers - Beloved Mexican Pepper (All About Them)": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Poblano-Peppers2.jpg", "Pueblo Chiles - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2024/10/Pueblo-Chilies1.jpg", "Purple Jalapeno Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/c99e3db826c0f4cc2688a36ce3b60e1a.jpg", "Purple Marconi Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/dca6745fdbb9da5b038270324f6ced2f.jpg", "Puya Chili Peppers (Chile Puya)": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Puya-Peppers.jpg", "Red Amazon Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Red Savina Habanero Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2023/11/Red-Savina-Habanero-Peppers3.jpg", "Rocotillo Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Rocoto-Chili-Pepper2.jpg", "Rocoto Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Rocoto-Peppers.jpg", "Roquito Peppers: Sweet and Spicy Pepper Pearls": "https://www.chilipeppermadness.com/wp-content/uploads/2020/10/Roquito-Peppers-SQ.jpg", "Sandia Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2024/10/Hatch-Chiles-Sandia1.jpg", "Santa Fe Grande Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Santa-Fe-Grande-Pepper.jpg", "Santaka Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Santaka-Peppers.jpg", "Scotch Bonnet Chili Peppers - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2025/10/Scotch-Bonnet-Chili-Peppers1.jpg", "Senise Chili Peppers - All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/5ab529a5ebdeee2caf2312423d91adb3.jpg", "Serrano Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Serrano-Peppers1.jpg", "Shepherds Ramshorn": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/983fb56032c1ac1b726360eae9dd3d18.jpg", "Shipkas Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Shishito Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2018/08/Shishito-Chili-Peppers1.jpg", "Sonora Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Sonoran-Peppers.jpg", "Sport Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2020/01/Sport-Peppers.jpg", "Sucette de Provence Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/c4416d79eef6dd018bcee3cd8b8ba561.jpg", "Sugar Rush Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/bab2d5d59ac444db8043a4f3e32c9f0e.jpg", "Super Chili Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Super Shepherd Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/07/Super-Shepherd-Chili-Pepper1.jpg", "Sweet Apple Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/b98eb4e6d4e5af022817653939abd5f0.jpg", "Bell Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Bell-Peppers.jpg", "Tabasco Peppers: All About Them": "https://www.chilipeppermadness.com/wp-content/uploads/2013/09/Tabasco-Peppers-2.jpg", "Tabiche Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Tangerine Dream Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/f14a855e71266fce000280ce97ff2b84.jpg", "Thai Pepper: Many Types and Heat Levels": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Thai-Peppers.jpg", "Tiburon Hybrid Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/08/Tiburon-Hybrid-Poblano-Type-Chili-Pepper1.jpg", "Tien Tsin Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Temp-Pepper-Types.jpg", "Tiger Paw NR Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Habanero-Peppers1.jpg", "Trinidad Moruga Scorpion Pepper: All About It": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Trinidad-Moruga-Scorpion-Peppers.jpg", "Trinidad Perfume Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/3899dfe821816fbcb3db3e3b23f81585.jpg", "Trinidad Scorpion Butch T Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2019/04/Trinidad-Scorpion-Peppers.jpg", "Trinidad Scorpion Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2013/10/Trinidad-Scorpion-Peppers2.jpg", "Tshololo Chili Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2018/03/ccbca3752adf58a776d876d7a7de9edc.jpg", "Wiri Wiri Pepper": "https://www.chilipeppermadness.com/wp-content/uploads/2020/10/Wiri-Wiri-Peppers.jpg", "Yatsafusa Chili Peppers": "https://www.chilipeppermadness.com/wp-content/uploads/2019/09/Yatsafusa-Peppers.jpg"};
 
-  // ---- detail panel ----
+  // ---- mobile-only info tooltip (desktop shows the description inline instead) ----
+  const infoBtn = document.getElementById('info-btn');
+  const infoTooltip = document.getElementById('info-tooltip');
+  if (infoBtn && infoTooltip) {
+    infoBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      infoTooltip.classList.toggle('open');
+    });
+    document.addEventListener('click', (e) => {
+      if (infoTooltip.classList.contains('open') && !infoTooltip.contains(e.target) && e.target !== infoBtn) {
+        infoTooltip.classList.remove('open');
+      }
+    });
+  }
+
+  // ---- detail panel (desktop: floating card / mobile: bottom sheet) ----
   const detailPanel = document.getElementById('detail-panel');
   const detailContent = document.getElementById('detail-content');
-  document.getElementById('detail-close').addEventListener('click', () => {
+  const detailBackdrop = document.getElementById('detail-backdrop');
+
+  function closeDetail(){
     detailPanel.classList.remove('open');
-  });
+    detailBackdrop.classList.remove('open');
+  }
+  document.getElementById('detail-close').addEventListener('click', closeDetail);
+  detailBackdrop.addEventListener('click', closeDetail);
+
+  // swipe-down-to-dismiss on the handle (mobile bottom sheet only — harmless no-op on desktop)
+  let touchStartY = null;
+  const detailHandle = document.getElementById('detail-handle');
+  detailHandle.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  detailHandle.addEventListener('touchend', (e) => {
+    if (touchStartY === null) return;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (dy > 60) closeDetail();
+    touchStartY = null;
+  }, { passive: true });
 
   function shuColor(avg){
     const v = Math.log(avg + 1);
@@ -4052,14 +4162,14 @@ const FALLBACK_DATA = {
         <div id="detail-eyebrow">${p.species}</div>
         <h3 id="detail-name">${p.name}</h3>
         <div class="detail-row"><span class="detail-label">Origin</span><span class="detail-value">${p.origin}</span></div>
-        <div class="detail-row"><span class="detail-label">Heat range</span><span class="detail-value">${p.shu_display}</span></div>
         ${img ? '' : badgeHTML}
         <br/>
-        <a id="detail-link" href="${p.url}" target="_blank" rel="noopener">Read more on Chili Pepper Madness →</a>
+        <a id="detail-link" href="${p.url}" target="_blank" rel="noopener">Read more →</a>
         ${p.estimated ? '<div id="detail-estimated">Heat level estimated from qualitative description — exact SHU not published.</div>' : ''}
       </div>
     `;
     detailPanel.classList.add('open');
+    detailBackdrop.classList.add('open');
   }
 
   // ---- search / filter ----
